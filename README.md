@@ -96,6 +96,14 @@ Gera em `results/tables/`: `parte1_basicas.csv` (vértices, arestas, graus, dens
 componentes; grafo completo e LCC), `componentes_tamanhos.csv` (tamanho de **cada**
 componente), `componentes_frequencia.csv`; e em `results/figures/`: `componentes_tamanhos.png`.
 
+```bash
+python -m src.distances
+```
+
+Na LCC: diâmetro e raio **exatos** pelo algoritmo *BoundingDiameters* (Takes & Kosters,
+2011) e comprimento médio dos caminhos **estimado** por BFS a partir de 100 e 500 fontes
+aleatórias (IC 95%). Gera `parte1_diametro_raio.csv` e `parte1_caminhos_amostragem.csv`.
+
 ### Testes
 
 ```bash
