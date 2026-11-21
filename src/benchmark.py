@@ -9,11 +9,15 @@ IC 95% da média:
 
 Também é feito um experimento de escala (tempo × tamanho da entrada) em
 subgrafos induzidos por BFS de tamanhos crescentes, com ajuste linear em escala
-log-log: a inclinação estima o expoente observado da complexidade.
+log-log: a inclinação estima o expoente observado da complexidade. Cada tamanho é
+medido 30 vezes, com IC 95% por ponto. Ajustamos também o tempo contra a função
+teórica f(n) (V+E, (V+E) log V, V³): se f descreve bem o custo, o expoente é ≈ 1.
 
 Uso:
-    python -m src.benchmark            # completo (~5 min)
-    python -m src.benchmark --quick    # 5 execuções por algoritmo (teste rápido)
+    python -m src.benchmark                 # completo (~9 min)
+    python -m src.benchmark --scaling-only  # só o experimento de escala (~4 min)
+    python -m src.benchmark --plots-only    # só redesenha as figuras a partir dos CSVs
+    python -m src.benchmark --quick         # execução reduzida (teste rápido)
 """
 
 import argparse
@@ -146,6 +150,10 @@ def scaling_experiment(reps: int) -> pd.DataFrame:
         sw = [weight_of[(mapping[u], mapping[v])] for u, v in sedges]
         return k, sedges, sw
 
+    def row(name, kk, m, size, times):
+        return {"algoritmo": name, "V": kk, "E": m, "tamanho": size,
+                "f_teorica": theoretical_cost(name, kk, m), **confidence_interval(times)}
+
     rows = []
     for k in (14_000, 28_000, 56_000, 112_000, n):
         kk, sedges, sw = sub(k)
@@ -153,40 +161,71 @@ def scaling_experiment(reps: int) -> pd.DataFrame:
         wa = build_weighted_adjacency(kk, sedges, sw)
         for name, fn in (("BFS", lambda: bfs(a, 0)), ("Dijkstra", lambda: dijkstra(wa, 0))):
             _, times = measure(fn, reps)
-            rows.append({"algoritmo": name, "V": kk, "E": len(sedges),
-                         "tamanho": kk + len(sedges), "media_s": statistics.fmean(times)})
+            rows.append(row(name, kk, len(sedges), kk + len(sedges), times))
+            print(f"  escala {name:15s} V={kk:>7} média {statistics.fmean(times):.4f}s")
     for k in (50, 100, 150, 200, 250, 300):
         kk, sedges, sw = sub(k)
         _, times = measure(lambda: floyd_warshall(kk, sedges, sw), reps)
-        rows.append({"algoritmo": "Floyd-Warshall", "V": kk, "E": len(sedges),
-                     "tamanho": kk, "media_s": statistics.fmean(times)})
+        rows.append(row("Floyd-Warshall", kk, len(sedges), kk, times))
+        print(f"  escala Floyd-Warshall  V={kk:>7} média {statistics.fmean(times):.4f}s")
     return pd.DataFrame(rows)
 
 
+def theoretical_cost(name: str, v: int, e: int) -> float:
+    """Função de custo teórica f(n) de cada algoritmo do experimento de escala."""
+    return {"BFS": v + e,
+            "Dijkstra": (v + e) * math.log2(v),
+            "Floyd-Warshall": float(v) ** 3}[name]
+
+
+def loglog_fit(x, y) -> tuple[float, float, float]:
+    """Reta log10(y) = a·log10(x) + b. Retorna (a, b, R²)."""
+    lx, ly = np.log10(np.asarray(x, float)), np.log10(np.asarray(y, float))
+    a, b = np.polyfit(lx, ly, 1)
+    pred = a * lx + b
+    r2 = 1 - np.sum((ly - pred) ** 2) / np.sum((ly - ly.mean()) ** 2)
+    return float(a), float(b), float(r2)
+
+
 def plot_scaling(df: pd.DataFrame) -> pd.DataFrame:
-    fig, axes = plt.subplots(1, 3, figsize=(14, 4))
-    slopes = []
-    specs = [("BFS", "V + E", 1), ("Dijkstra", "V + E", 1), ("Floyd-Warshall", "V", 3)]
-    for ax, (name, xlabel, theory) in zip(axes, specs):
+    """Tempo × tamanho com IC 95% por ponto e dois ajustes em log-log:
+    (i) contra o tamanho da entrada (expoente teórico 1 ou 3);
+    (ii) contra a função teórica f(n) (expoente ideal 1, se f descreve bem o custo)."""
+    fig, axes = plt.subplots(1, 3, figsize=(14, 4.2))
+    fits = []
+    specs = [("BFS", "V + E", 1, "V+E"), ("Dijkstra", "V + E", 1, "(V+E) log V"),
+             ("Floyd-Warshall", "V", 3, "V³")]
+    for ax, (name, xlabel, theory, fname) in zip(axes, specs):
         d = df[df["algoritmo"] == name]
-        x, y = np.log10(d["tamanho"]), np.log10(d["media_s"])
-        slope, intercept = np.polyfit(x, y, 1)
-        slopes.append({"algoritmo": name, "expoente_observado": slope,
-                       "expoente_teorico": theory})
-        ax.loglog(d["tamanho"], d["media_s"], "o", label="medido")
-        xs = np.linspace(x.min(), x.max(), 50)
-        ax.loglog(10 ** xs, 10 ** (intercept + slope * xs), "--",
-                  label=f"ajuste: inclinação {slope:.2f}")
+        slope, intercept, r2 = loglog_fit(d["tamanho"], d["media_s"])
+        row = {"algoritmo": name, "expoente_observado": slope, "R2": r2,
+               "expoente_teorico": theory}
+        if "f_teorica" in d:
+            s_f, _, r2_f = loglog_fit(d["f_teorica"], d["media_s"])
+            row.update({"funcao_teorica": fname, "expoente_vs_f": s_f, "R2_vs_f": r2_f})
+        fits.append(row)
+        if "ic95_inf_s" in d:
+            err = [d["media_s"] - d["ic95_inf_s"], d["ic95_sup_s"] - d["media_s"]]
+            ax.errorbar(d["tamanho"], d["media_s"], yerr=err, fmt="o", capsize=3,
+                        label=f"medido (média e IC 95%, n={int(d['n'].iloc[0])})")
+        else:
+            ax.plot(d["tamanho"], d["media_s"], "o", label="medido")
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        lx = np.log10(d["tamanho"])
+        xs = np.linspace(lx.min(), lx.max(), 50)
+        ax.plot(10 ** xs, 10 ** (intercept + slope * xs), "--",
+                label=f"ajuste: inclinação {slope:.2f} (R² = {r2:.3f})")
         ax.set_title(f"{name} (teórico: expoente ≈ {theory}"
                      f"{' + fator log' if name == 'Dijkstra' else ''})")
         ax.set_xlabel(f"Tamanho da entrada ({xlabel})")
         ax.set_ylabel("Tempo médio (s)")
         ax.grid(True, which="both", alpha=0.3)
-        ax.legend()
+        ax.legend(fontsize=8)
     fig.tight_layout()
     save_figure(fig, "escala_algoritmos")
     plt.close(fig)
-    return pd.DataFrame(slopes)
+    return pd.DataFrame(fits)
 
 
 def plot_times(timing: pd.DataFrame) -> None:
@@ -208,20 +247,23 @@ def main() -> None:
     parser.add_argument("--quick", action="store_true")
     parser.add_argument("--plots-only", action="store_true",
                         help="apenas redesenha as figuras a partir dos CSVs existentes")
+    parser.add_argument("--scaling-only", action="store_true",
+                        help="refaz só o experimento de escala")
     args = parser.parse_args()
-    runs, fw_runs, reps = (5, 3, 2) if args.quick else (30, 10, 5)
+    runs, fw_runs, reps = (5, 3, 3) if args.quick else (30, 10, 30)
 
     if args.plots_only:
         plot_times(pd.read_csv(TABLES_DIR / "parte2_tempos.csv"))
         plot_scaling(pd.read_csv(TABLES_DIR / "parte2_escala.csv"))
         return
 
-    timing, results = run_benchmark(runs, fw_runs)
-    timing.to_csv(TABLES_DIR / "parte2_tempos.csv", index=False)
-    results.to_csv(TABLES_DIR / "parte2_resultados.csv", index=False)
-    plot_times(timing)
+    if not args.scaling_only:
+        timing, results = run_benchmark(runs, fw_runs)
+        timing.to_csv(TABLES_DIR / "parte2_tempos.csv", index=False)
+        results.to_csv(TABLES_DIR / "parte2_resultados.csv", index=False)
+        plot_times(timing)
 
-    print("\nExperimento de escala...")
+    print(f"\nExperimento de escala ({reps} repetições por tamanho)...")
     scaling = scaling_experiment(reps)
     scaling.to_csv(TABLES_DIR / "parte2_escala.csv", index=False)
     slopes = plot_scaling(scaling)
