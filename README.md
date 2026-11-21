@@ -31,7 +31,7 @@ python -m venv .venv
 .venv\Scripts\activate              # Linux/macOS: source .venv/bin/activate
 pip install -r requirements.txt
 
-python scripts/run_all.py           # pipeline completo (~25 min)
+python scripts/run_all.py           # pipeline completo (~30 min)
 python -m pytest                    # testes (~10 s)
 jupyter notebook notebooks/analise.ipynb
 ```
@@ -64,12 +64,14 @@ src/
   smallworld.py           Parte III: small-world (gerador Erdős–Rényi próprio)
   powerlaw.py             Parte III: lei de potência
   robustness.py           Parte III: robustez a remoção aleatória e direcionada
+  report_tables.py        gera as tabelas LaTeX do relatório a partir dos CSVs
   algorithms/             BFS, DFS, Euler, Dijkstra, Bellman-Ford, Floyd-Warshall,
-                          Tarjan, Prim, Kruskal
+                          Tarjan, Prim, Kruskal, PageRank
 notebooks/analise.ipynb   reúne todas as tabelas e figuras
 tests/                    testes (implementações conferidas com o NetworkX)
 results/tables/           resultados em CSV
-results/figures/          figuras em PNG
+results/figures/          figuras em PNG e em PDF vetorial (para o LaTeX)
+results/latex/            tabelas LaTeX geradas (tab_*.tex), prontas para \input
 ```
 
 ## Pipeline passo a passo
@@ -87,13 +89,15 @@ todos eles nesta ordem.
 | 6 | `python -m src.clustering` | Triângulos, clusterização, transitividade | `parte1_clusterizacao.csv` | 10 s |
 | 7 | `python -m src.visualize` | Distribuição de graus e visualização de amostra | `distribuicao_graus.*`, `visualizacao_amostra.png` | 15 s |
 | 8 | `python -m src.part1_summary` | Tabela-resumo da Parte I | `parte1_resumo.csv` | 1 s |
-| 9 | `python -m src.benchmark` | Execução e tempo de todos os algoritmos | `parte2_*.csv`, `tempos_algoritmos.png`, `escala_algoritmos.png` | 5 min |
+| 9 | `python -m src.benchmark` | Tempo de todos os algoritmos (30 execuções) e escala (30 repetições por tamanho, IC 95%) | `parte2_*.csv`, `tempos_algoritmos.*`, `escala_algoritmos.*` | 9 min |
 | 10 | `python -m src.smallworld` | Small-world contra 5 grafos Erdős–Rényi | `parte3_smallworld*.csv` | 10 min |
 | 11 | `python -m src.powerlaw` | Lei de potência | `parte3_powerlaw*.csv`, `lei_de_potencia.png` | 5 s |
-| 12 | `python -m src.robustness` | Robustez (30 remoções aleatórias + ataque) | `parte3_robustez*.csv`, `robustez.png` | 6 min |
+| 12 | `python -m src.robustness` | Robustez: 30 remoções aleatórias + ataques por grau e por PageRank | `parte3_robustez*.csv`, `robustez.*` | 7 min |
+| 13 | `python -m src.report_tables` | Tabelas LaTeX do relatório a partir dos CSVs | `results/latex/tab_*.tex` | 1 s |
 
 \* Tempos aproximados num notebook comum. `benchmark` e `robustness` aceitam `--quick`
-para uma execução reduzida.
+para uma execução reduzida e `--plots-only` para só redesenhar as figuras a partir dos
+CSVs; `benchmark --scaling-only` refaz apenas o experimento de escala.
 
 ## Tratamento dos dados
 
@@ -163,6 +167,16 @@ Tempos com 30 execuções e IC 95% pela Normal (Z). O Floyd-Warshall em Python p
 Tempos variam de máquina para máquina. Os valores acima foram medidos no ambiente de
 desenvolvimento, e a saída de cada algoritmo está em `results/tables/parte2_resultados.csv`.
 
+**Complexidade observada** (subgrafos de tamanho crescente, 30 repetições por tamanho, IC 95%
+por ponto). Inclinação em log-log do tempo contra o tamanho e contra a função teórica f(n),
+cujo expoente ideal é 1:
+
+| Algoritmo | Expoente teórico | Observado (R²) | f(n) | Expoente vs. f(n) (R²) |
+|---|---:|---:|---|---:|
+| BFS | 1 | 1,50 (0,995) | V+E | 1,50 (0,995) |
+| Dijkstra | 1 | 1,53 (0,993) | (V+E) log V | 1,36 (0,994) |
+| Floyd-Warshall | 3 | 2,98 (1,000) | V³ | 0,99 (1,000) |
+
 ### Parte III: propriedades da rede
 
 | Pergunta | Resultado |
@@ -170,7 +184,14 @@ desenvolvimento, e a saída de cada algoritmo está em `results/tables/parte2_re
 | Small-world? | **Sim**: C = 0,079 contra C_rand ≈ 0,000008 (cerca de 10⁴ vezes maior); L = 4,13 contra L_rand ≈ 11,1; σ ≈ 2,7×10⁴ |
 | Lei de potência? | **Aproximadamente**: cauda pesada, com γ ≈ 1,9–2,0 nos ajustes lineares, mas dois regimes (γ ≈ 2,8 na cabeça e γ ≈ 1,7 na cauda, por máxima verossimilhança) e corte acima de k ≈ 1.000 |
 | Robusto à remoção aleatória de 5%? | **Sim**: a maior componente mantém 90,7% ± 1,7% dos vértices |
-| Robusto à remoção dos 5% de maior grau? | **Não**: a maior componente cai para 6 vértices e 99,7% dos restantes ficam isolados |
+| Robusto à remoção dos 5% mais centrais? | **Não**: atacando pelo **grau**, a maior componente cai para 6 vértices (99,7% isolados); pelo **PageRank** (implementação própria), para 3 vértices (99,8% isolados). As duas centralidades escolhem 93% dos mesmos alvos |
+
+## Relatório
+
+O relatório (template WebMedia) não é versionado: é entregue como PDF. Suas tabelas são
+geradas por `python -m src.report_tables` em `results/latex/` (e copiadas para
+`relatorio/tabelas/`, se essa pasta existir), e as figuras são os PDFs vetoriais de
+`results/figures/`. Assim, nenhum número das tabelas do relatório é digitado à mão.
 
 ## Reprodutibilidade
 
@@ -180,7 +201,7 @@ desenvolvimento, e a saída de cada algoritmo está em `results/tables/parte2_re
 - Os `.gz` de `data/processed/` são gravados sem data de criação, então reexecutar não
   altera os arquivos versionados.
 - Cada algoritmo próprio é conferido com o NetworkX em `tests/`
-  (`python -m pytest`, 103 testes).
+  (`python -m pytest`, 110 testes).
 
 ## Referências
 
