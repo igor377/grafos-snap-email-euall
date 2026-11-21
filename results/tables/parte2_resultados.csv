@@ -1,0 +1,13 @@
+algoritmo,grafo,resultado
+BFS,LCC,visitou 224832 vértices; profundidade máx. 10
+DFS (iterativa),LCC,visitou 224832 vértices
+Eulerianidade (não dirigido),LCC,não euleriano; 198520 vértices de grau ímpar
+Eulerianidade (dirigido),G_dir,não euleriano; 242614 vértices com entrada≠saída; fracamente conexo=False
+Dijkstra (heap),LCC ponderada,alcançou 224832 vértices; dist. máx. 41
+Bellman-Ford,subgrafo 300,alcançou 300 vértices; 3 rodadas
+Floyd-Warshall (Python puro),subgrafo 300,matriz 300×300; dist. máx. 20
+Floyd-Warshall (numpy),subgrafo 300,matriz 300×300; dist. máx. 20
+Tarjan (SCC),G_dir,231000 SCCs; maior com 34203 vértices
+Tarjan (pontes/articulações),LCC,188668 pontes; 2223 articulações
+Prim (heap),LCC ponderada,224831 arestas; peso total 1151996
+Kruskal (union-find),LCC ponderada,224831 arestas; peso total 1151996

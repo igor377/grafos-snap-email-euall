@@ -133,6 +133,31 @@ computada, aproximada ou não computada, e o método (`parte1_resumo.csv`).
 | Clusterização média | 0,0671 | 0,0791 | exato |
 | Triângulos | 267.313 | 267.313 | exato |
 
+### 5. Parte II – Algoritmos
+
+Implementações próprias em `src/algorithms/`, todas conferidas com o NetworkX em `tests/`:
+
+| Algoritmo | Arquivo | Grafo | Complexidade |
+|---|---|---|---|
+| BFS | `bfs.py` | LCC | O(V+E) |
+| DFS (iterativa) | `dfs.py` | LCC | O(V+E) |
+| Eulerianidade (+ Hierholzer) | `euler.py` | LCC e grafo dirigido | O(V+E) |
+| Dijkstra (heap) | `dijkstra.py` | LCC com pesos sintéticos | O((V+E) log V) |
+| Bellman-Ford | `bellman_ford.py` | subgrafo de 300 vértices | O(V·E) |
+| Floyd-Warshall (puro e numpy) | `floyd_warshall.py` | subgrafo de 300 vértices | O(V³) |
+| Tarjan: SCC e pontes/articulações | `tarjan.py` | grafo dirigido / LCC | O(V+E) |
+| Prim (heap) e Kruskal (union-find) | `mst.py` | LCC com pesos sintéticos | O(E log V) |
+
+```bash
+python -m src.benchmark          # completo: 30 execuções (10 no Floyd-Warshall puro), ~5 min
+python -m src.benchmark --quick  # verificação rápida
+```
+
+Gera `parte2_tempos.csv` (média, desvio e IC 95%: Normal/Z para n ≥ 30, t-Student
+para n < 30), `parte2_resultados.csv` (saída de cada algoritmo), `parte2_escala.csv` e
+`parte2_expoentes.csv` (tempo × tamanho da entrada; a inclinação em log-log é o
+expoente observado), além das figuras `tempos_algoritmos.png` e `escala_algoritmos.png`.
+
 ### Testes
 
 ```bash

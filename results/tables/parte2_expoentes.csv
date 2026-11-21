@@ -1,0 +1,4 @@
+algoritmo,expoente_observado,expoente_teorico
+BFS,1.4486663900934234,1
+Dijkstra,1.5292628188392285,1
+Floyd-Warshall,2.9827527061329966,3
