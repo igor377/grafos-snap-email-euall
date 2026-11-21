@@ -17,3 +17,6 @@ PLANEJAMENTO.md
 .idea/
 .DS_Store
 Thumbs.db
+
+# Relatório (LaTeX/Overleaf) – entregue apenas como PDF no Moodle
+relatorio/

@@ -1,207 +1,196 @@
-# Analisando Grafos do SNAP — `email-EuAll`
+# Analisando Grafos do SNAP: `email-EuAll`
 
-Trabalho prático da disciplina de Teoria dos Grafos (IC/UFBA): tratamento, análise
-estrutural, implementação de algoritmos clássicos e estudo de propriedades
-(small-world, lei de potência e robustez) sobre um grafo real do
-[SNAP](https://snap.stanford.edu/data/index.html).
+Trabalho prático de **Teoria dos Grafos** (Instituto de Computação, UFBA). Aplica os conceitos
+da disciplina a um grafo real do [SNAP](https://snap.stanford.edu/data/index.html):
+
+- tratamento dos dados;
+- análise estrutural (Parte I);
+- implementação e medição de tempo dos algoritmos clássicos (Parte II);
+- investigação de small-world, lei de potência e robustez (Parte III).
+
+Todos os algoritmos e análises são **implementações próprias**. O NetworkX é usado apenas
+para conferir os resultados nos testes e para desenhar a visualização.
 
 ## Grafo atribuído
 
-Regra: `G = (S × (U + 1)) mod 129` (se 0, usa-se 129), onde `S` é a soma dos dígitos
-da matrícula e `U` são os seus dois últimos dígitos.
+Regra: `G = (S × (U + 1)) mod 129` (se o resultado for 0, usa-se 129), onde `S` é a soma
+dos dígitos da matrícula e `U` são os seus dois últimos dígitos.
 
 | Matrícula | S | U | Cálculo | Grafo |
 |---|---|---|---|---|
-| 224216275 | 31 | 75 | (31 × 76) mod 129 = 2356 mod 129 = 34 | **G34 – `email-EuAll`** |
+| 224216275 | 2+2+4+2+1+6+2+7+5 = 31 | 75 | (31 × 76) mod 129 = 2356 mod 129 = **34** | **G34: `email-EuAll`** |
 
-[`email-EuAll`](https://snap.stanford.edu/data/email-EuAll.html): rede de e-mails de uma
-instituição de pesquisa europeia — grafo dirigido com 265.214 vértices e 420.045 arestas.
+[`email-EuAll`](https://snap.stanford.edu/data/email-EuAll.html) é a rede de e-mails de uma
+instituição de pesquisa europeia, de out/2003 a mar/2005. É um grafo **dirigido** com
+265.214 vértices e 420.045 arestas, em que u → v significa que u enviou ao menos um e-mail a v.
+
+## Execução rápida
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate              # Linux/macOS: source .venv/bin/activate
+pip install -r requirements.txt
+
+python scripts/run_all.py           # pipeline completo (~25 min)
+python -m pytest                    # testes (~10 s)
+jupyter notebook notebooks/analise.ipynb
+```
+
+Requer **Python 3.10+**. O projeto foi testado com Python 3.14.3, numpy 2.5.5, scipy 1.18.1,
+pandas 3.1.1, matplotlib 3.11.2, networkx 3.7, pytest 9.2.0 e jupyter 1.1.1.
+
+Os resultados (`results/`) e o grafo tratado (`data/processed/`) já estão versionados.
+Para apenas consultar, basta abrir o notebook ou os arquivos em `results/`, sem executar nada.
 
 ## Estrutura
 
 ```
-scripts/          download dos dados brutos
-data/raw/         dados brutos do SNAP (não versionados)
-data/processed/   grafo tratado
-src/              tratamento, métricas e análises
-src/algorithms/   implementações próprias dos algoritmos
-notebooks/        notebook de análise
-tests/            testes comparando as implementações com o NetworkX
-results/          tabelas (CSV) e figuras geradas
+scripts/
+  download_data.py        baixa o grafo bruto do SNAP e confere |V| e |E|
+  run_all.py              executa o pipeline inteiro, em ordem
+data/
+  raw/                    grafo bruto (não versionado; baixado pelo script)
+  processed/              grafo tratado (versionado)
+src/
+  load.py                 leitura/escrita de edgelists e caminhos do projeto
+  treatment.py            tratamento: auto-loops, não dirigido, LCC
+  prepare_data.py         gera data/processed/ (LCC, grafo dirigido, subgrafo, pesos)
+  metrics.py              Parte I: graus, densidade, componentes
+  distances.py            Parte I: diâmetro, raio, caminho médio
+  clustering.py           Parte I: triângulos e clusterização
+  visualize.py            Parte I: distribuição de graus e visualização
+  part1_summary.py        Parte I: tabela "computado / aproximado / não computado"
+  benchmark.py            Parte II: tempos, IC 95% e experimento de escala
+  smallworld.py           Parte III: small-world (gerador Erdős–Rényi próprio)
+  powerlaw.py             Parte III: lei de potência
+  robustness.py           Parte III: robustez a remoção aleatória e direcionada
+  algorithms/             BFS, DFS, Euler, Dijkstra, Bellman-Ford, Floyd-Warshall,
+                          Tarjan, Prim, Kruskal
+notebooks/analise.ipynb   reúne todas as tabelas e figuras
+tests/                    testes (implementações conferidas com o NetworkX)
+results/tables/           resultados em CSV
+results/figures/          figuras em PNG
 ```
 
-## Requisitos
+## Pipeline passo a passo
 
-Python 3.10+.
+Todos os comandos são executados a partir da raiz do projeto. `scripts/run_all.py` executa
+todos eles nesta ordem.
 
-```bash
-python -m venv .venv
-.venv\Scripts\activate        # Windows  (Linux/macOS: source .venv/bin/activate)
-pip install -r requirements.txt
-```
+| # | Comando | O que faz | Saídas principais | Tempo* |
+|---|---|---|---|---|
+| 1 | `python scripts/download_data.py` | Baixa `email-EuAll.txt.gz` e confere 265.214 / 420.045 | `data/raw/` | 2 s |
+| 2 | `python -m src.treatment` | Tratamento e tabela de evolução | `tratamento_evolucao.csv` | 5 s |
+| 3 | `python -m src.prepare_data` | Grafo tratado, subgrafo de 300 vértices, pesos sintéticos | `data/processed/*` | 10 s |
+| 4 | `python -m src.metrics` | Graus, densidade, componentes e o tamanho de cada uma | `parte1_basicas.csv`, `componentes_*.csv` | 10 s |
+| 5 | `python -m src.distances` | Diâmetro e raio exatos; caminho médio por amostragem | `parte1_diametro_raio.csv`, `parte1_caminhos_amostragem.csv` | 1,5 min |
+| 6 | `python -m src.clustering` | Triângulos, clusterização, transitividade | `parte1_clusterizacao.csv` | 10 s |
+| 7 | `python -m src.visualize` | Distribuição de graus e visualização de amostra | `distribuicao_graus.*`, `visualizacao_amostra.png` | 15 s |
+| 8 | `python -m src.part1_summary` | Tabela-resumo da Parte I | `parte1_resumo.csv` | 1 s |
+| 9 | `python -m src.benchmark` | Execução e tempo de todos os algoritmos | `parte2_*.csv`, `tempos_algoritmos.png`, `escala_algoritmos.png` | 5 min |
+| 10 | `python -m src.smallworld` | Small-world contra 5 grafos Erdős–Rényi | `parte3_smallworld*.csv` | 10 min |
+| 11 | `python -m src.powerlaw` | Lei de potência | `parte3_powerlaw*.csv`, `lei_de_potencia.png` | 5 s |
+| 12 | `python -m src.robustness` | Robustez (30 remoções aleatórias + ataque) | `parte3_robustez*.csv`, `robustez.png` | 6 min |
 
-## Execução
+\* Tempos aproximados num notebook comum. `benchmark` e `robustness` aceitam `--quick`
+para uma execução reduzida.
 
-### 1. Download dos dados brutos
-
-```bash
-python scripts/download_data.py
-```
-
-Baixa `email-EuAll.txt.gz` do SNAP para `data/raw/` (não versionado) e confere se o
-arquivo tem os 265.214 vértices e 420.045 arestas declarados pelo SNAP.
-Use `--force` para baixar novamente.
-
-### 2. Tratamento
-
-```bash
-python -m src.treatment
-```
-
-Aplica, nesta ordem: remoção de auto-loops → conversão para não dirigido simples →
-extração da maior componente conexa. Gera `results/tables/tratamento_evolucao.csv`:
+## Tratamento dos dados
 
 | Etapa | Vértices | Arestas |
 |---|---:|---:|
 | Grafo bruto (dirigido) | 265.214 | 420.045 |
-| Após remoção de auto-loops (dirigido) | 265.214 | 418.956 |
-| Após conversão para não dirigido simples | 265.214 | 364.481 |
+| Remoção de 1.089 auto-loops | 265.214 | 418.956 |
+| Dirigido → não dirigido simples (u→v e v→u viram uma aresta) | 265.214 | 364.481 |
 | Maior componente conexa (LCC) | 224.832 | 339.925 |
 
-### 3. Conjunto de dados tratado
+- Não há etapa temporal nem de multigrafo: o SNAP distribui o grafo já agregado no período
+  e sem arestas repetidas.
+- A política adotada para o grafo desconexo é trabalhar na LCC, que tem 84,8% dos vértices
+  e 93,3% das arestas.
+- O grafo dirigido sem auto-loops também é mantido, para o algoritmo de Tarjan (componentes
+  fortemente conexas).
 
-```bash
-python -m src.prepare_data
-```
-
-Gera (e versiona) em `data/processed/`:
+Arquivos em `data/processed/` (o `.gz` é gerado de forma determinística):
 
 | Arquivo | Conteúdo |
 |---|---|
-| `lcc.edgelist.gz` | LCC não dirigida (224.832 vértices, 339.925 arestas), ids renumerados `0..n-1`, colunas `u v w` |
+| `lcc.edgelist.gz` | LCC não dirigida, ids renumerados `0..n-1`, colunas `u v w` |
 | `lcc_node_map.csv.gz` | correspondência `novo_id → id_original` do SNAP |
-| `directed_no_loops.edgelist.gz` | grafo dirigido sem auto-loops (265.214 vértices, 418.956 arestas), usado no Tarjan |
-| `subgraph_300.edgelist.gz` | subgrafo induzido de 300 vértices (372 arestas), obtido por BFS na LCC, usado no Bellman-Ford e no Floyd-Warshall |
+| `directed_no_loops.edgelist.gz` | grafo dirigido sem auto-loops (ids originais) |
+| `subgraph_300.edgelist.gz` | subgrafo induzido de 300 vértices (372 arestas), obtido por BFS na LCC |
 
-O grafo original é **não ponderado**. Para os algoritmos ponderados foram atribuídos
-pesos sintéticos inteiros uniformes em `[1, 10]` (semente 42). O subgrafo herda os pesos da LCC.
+O grafo é **não ponderado**. Para Dijkstra, Bellman-Ford, Floyd-Warshall, Prim e Kruskal
+foram atribuídos **pesos sintéticos inteiros uniformes em [1, 10]** (semente 42). O subgrafo
+herda os pesos da LCC.
 
-### 4. Parte I – Métricas estruturais
+## Resultados principais
 
-```bash
-python -m src.metrics
-```
+### Parte I: análise estrutural
 
-Gera em `results/tables/`: `parte1_basicas.csv` (vértices, arestas, graus, densidade,
-componentes; grafo completo e LCC), `componentes_tamanhos.csv` (tamanho de **cada**
-componente), `componentes_frequencia.csv`; e em `results/figures/`: `componentes_tamanhos.png`.
-
-```bash
-python -m src.distances
-```
-
-Na LCC: diâmetro e raio **exatos** pelo algoritmo *BoundingDiameters* (Takes & Kosters,
-2011) e comprimento médio dos caminhos **estimado** por BFS a partir de 100 e 500 fontes
-aleatórias (IC 95%). Gera `parte1_diametro_raio.csv` e `parte1_caminhos_amostragem.csv`.
-
-```bash
-python -m src.clustering
-```
-
-Número de triângulos (algoritmo *forward*), coeficiente de clusterização médio e
-transitividade, no grafo completo e na LCC. Gera `parte1_clusterizacao.csv`.
-
-```bash
-python -m src.visualize
-python -m src.part1_summary
-```
-
-Distribuição de graus (`distribuicao_graus.csv/.png`, escalas linear e log-log),
-visualização de uma amostra de 300 vértices em torno dos 5 maiores hubs
-(`visualizacao_amostra.png`) e a tabela-resumo da Parte I com o status de cada medida,
-computada, aproximada ou não computada, e o método (`parte1_resumo.csv`).
-
-| Medida | Grafo completo | LCC | Status |
+| Medida | Grafo completo | LCC | Como |
 |---|---:|---:|---|
-| Vértices | 265.214 | 224.832 | exato |
-| Arestas | 364.481 | 339.925 | exato |
+| Vértices / arestas | 265.214 / 364.481 | 224.832 / 339.925 | exato |
 | Grau mín / máx / médio | 0 / 7.636 / 2,75 | 1 / 7.636 / 3,02 | exato |
 | Densidade | 1,04×10⁻⁵ | 1,34×10⁻⁵ | exato |
-| Componentes conexas | 15.836 | 1 | exato |
-| Diâmetro / raio | ∞ (desconexo) | 14 / 7 | exato |
-| Comprimento médio dos caminhos | – | 4,13 (IC 95%: 4,10–4,16) | amostragem |
+| Componentes conexas | 15.836 | 1 | exato (BFS) |
+| Diâmetro / raio | ∞ (desconexo) | **14 / 7** | exato (*BoundingDiameters*, 4 BFS) |
+| Comprimento médio dos caminhos | – | 4,13 (IC 95%: 4,10–4,16) | BFS a partir de 500 fontes |
 | Clusterização média | 0,0671 | 0,0791 | exato |
-| Triângulos | 267.313 | 267.313 | exato |
+| Triângulos | 267.313 | 267.313 | exato (algoritmo *forward*) |
 
-### 5. Parte II – Algoritmos
+A tabela completa com o status de cada medida está em `results/tables/parte1_resumo.csv`.
 
-Implementações próprias em `src/algorithms/`, todas conferidas com o NetworkX em `tests/`:
+### Parte II: algoritmos
 
-| Algoritmo | Arquivo | Grafo | Complexidade |
-|---|---|---|---|
-| BFS | `bfs.py` | LCC | O(V+E) |
-| DFS (iterativa) | `dfs.py` | LCC | O(V+E) |
-| Eulerianidade (+ Hierholzer) | `euler.py` | LCC e grafo dirigido | O(V+E) |
-| Dijkstra (heap) | `dijkstra.py` | LCC com pesos sintéticos | O((V+E) log V) |
-| Bellman-Ford | `bellman_ford.py` | subgrafo de 300 vértices | O(V·E) |
-| Floyd-Warshall (puro e numpy) | `floyd_warshall.py` | subgrafo de 300 vértices | O(V³) |
-| Tarjan: SCC e pontes/articulações | `tarjan.py` | grafo dirigido / LCC | O(V+E) |
-| Prim (heap) e Kruskal (union-find) | `mst.py` | LCC com pesos sintéticos | O(E log V) |
+Tempos com 30 execuções e IC 95% pela Normal (Z). O Floyd-Warshall em Python puro teve
+10 execuções, com IC pela t-Student.
 
-```bash
-python -m src.benchmark          # completo: 30 execuções (10 no Floyd-Warshall puro), ~5 min
-python -m src.benchmark --quick  # verificação rápida
-```
+| Algoritmo | Grafo | Complexidade | Média (s) | IC 95% (s) |
+|---|---|---|---:|---|
+| BFS | LCC | O(V+E) | 0,198 | [0,183; 0,213] |
+| DFS (iterativa) | LCC | O(V+E) | 0,320 | [0,316; 0,323] |
+| Eulerianidade | LCC | O(V+E) | 0,166 | [0,165; 0,167] |
+| Dijkstra (heap) | LCC ponderada | O((V+E) log V) | 0,770 | [0,767; 0,774] |
+| Bellman-Ford | subgrafo 300 | O(V·E) | 0,0003 | [0,0003; 0,0003] |
+| Floyd-Warshall (Python puro) | subgrafo 300 | O(V³) | 1,952 | [1,940; 1,964] |
+| Floyd-Warshall (numpy) | subgrafo 300 | O(V³) | 0,057 | [0,057; 0,058] |
+| Tarjan (SCC) | grafo dirigido | O(V+E) | 0,607 | [0,603; 0,611] |
+| Tarjan (pontes/articulações) | LCC | O(V+E) | 0,577 | [0,569; 0,586] |
+| Prim (heap) | LCC ponderada | O(E log V) | 0,904 | [0,897; 0,910] |
+| Kruskal (union-find) | LCC ponderada | O(E log V) | 0,526 | [0,523; 0,529] |
 
-Gera `parte2_tempos.csv` (média, desvio e IC 95%: Normal/Z para n ≥ 30, t-Student
-para n < 30), `parte2_resultados.csv` (saída de cada algoritmo), `parte2_escala.csv` e
-`parte2_expoentes.csv` (tempo × tamanho da entrada; a inclinação em log-log é o
-expoente observado), além das figuras `tempos_algoritmos.png` e `escala_algoritmos.png`.
+Tempos variam de máquina para máquina. Os valores acima foram medidos no ambiente de
+desenvolvimento, e a saída de cada algoritmo está em `results/tables/parte2_resultados.csv`.
 
-### 6. Parte III – Propriedades da rede
+### Parte III: propriedades da rede
 
-```bash
-python -m src.smallworld   # ~10 min
-```
+| Pergunta | Resultado |
+|---|---|
+| Small-world? | **Sim**: C = 0,079 contra C_rand ≈ 0,000008 (cerca de 10⁴ vezes maior); L = 4,13 contra L_rand ≈ 11,1; σ ≈ 2,7×10⁴ |
+| Lei de potência? | **Aproximadamente**: cauda pesada, com γ ≈ 1,9–2,0 nos ajustes lineares, mas dois regimes (γ ≈ 2,8 na cabeça e γ ≈ 1,7 na cauda, por máxima verossimilhança) e corte acima de k ≈ 1.000 |
+| Robusto à remoção aleatória de 5%? | **Sim**: a maior componente mantém 90,7% ± 1,7% dos vértices |
+| Robusto à remoção dos 5% de maior grau? | **Não**: a maior componente cai para 6 vértices e 99,7% dos restantes ficam isolados |
 
-Small-world **sem bibliotecas prontas**: C e L da LCC contra 5 realizações de um
-Erdős–Rényi G(n, m) gerado por código próprio (mesmos n e m, logo o mesmo ⟨k⟩), mais os
-valores analíticos ⟨k⟩/n e ln n / ln⟨k⟩; σ = (C/C_r)/(L/L_r). Gera `parte3_smallworld.csv`
-e `parte3_smallworld_er.csv`.
+## Reprodutibilidade
 
-```bash
-python -m src.powerlaw
-```
+- **Sementes fixas** (42) em todo sorteio: pesos sintéticos, subgrafo, amostras de BFS,
+  grafos Erdős–Rényi e remoções aleatórias. Reexecutar o pipeline reproduz as mesmas
+  tabelas e figuras; só os tempos da Parte II variam.
+- Os `.gz` de `data/processed/` são gravados sem data de criação, então reexecutar não
+  altera os arquivos versionados.
+- Cada algoritmo próprio é conferido com o NetworkX em `tests/`
+  (`python -m pytest`, 103 testes).
 
-Lei de potência: P(k) com log-binning e CCDF em log-log, ajuste linear e máxima
-verossimilhança discreta (Clauset et al., 2009) com k_min escolhido por
-Kolmogorov–Smirnov. Gera `parte3_powerlaw.csv`, `parte3_powerlaw_sensibilidade.csv`
-(γ em função de k_min) e `lei_de_potencia.png`.
+## Referências
 
-```bash
-python -m src.robustness   # ~6 min
-```
-
-Robustez na LCC com remoção de r = ⌊0,05·N⌋ = 11.241 vértices: 30 remoções aleatórias e
-remoção direcionada pelo ranking fixo de **grau**. Métricas A (fração na maior
-componente), B (nº de componentes), C (caminho médio na maior componente) e D (fração de
-isolados). Gera `parte3_robustez.csv`, `parte3_robustez_aleatoria.csv` e `robustez.png`
-(boxplots com média ± desvio).
-
-### 7. Notebook
-
-```bash
-jupyter notebook notebooks/analise.ipynb
-```
-
-Reúne todas as tabelas e figuras na ordem do relatório. Com `RECOMPUTE = False` (padrão)
-apenas exibe os resultados de `results/`; com `RECOMPUTE = True` refaz todo o pipeline
-(~25 min).
-
-### Testes
-
-```bash
-python -m pytest
-```
-
-> Os demais passos serão adicionados ao longo do desenvolvimento.
+- J. Leskovec, J. Kleinberg, C. Faloutsos. *Graph Evolution: Densification and Shrinking
+  Diameters*. ACM TKDD, 2007. (dataset `email-EuAll`)
+- F. W. Takes, W. A. Kosters. *Determining the Diameter of Small World Networks*. CIKM, 2011.
+- T. Schank, D. Wagner. *Finding, Counting and Listing All Triangles in Large Graphs*. WEA, 2005.
+- A. Clauset, C. R. Shalizi, M. E. J. Newman. *Power-Law Distributions in Empirical Data*.
+  SIAM Review, 2009.
+- D. J. Watts, S. H. Strogatz. *Collective dynamics of "small-world" networks*. Nature, 1998.
+- R. Albert, H. Jeong, A.-L. Barabási. *Error and attack tolerance of complex networks*.
+  Nature, 2000.
+- T. H. Cormen et al. *Introduction to Algorithms*. 4. ed. MIT Press, 2022.

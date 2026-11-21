@@ -12,7 +12,11 @@ import urllib.request
 from pathlib import Path
 
 URL = "https://snap.stanford.edu/data/email-EuAll.txt.gz"
-RAW_DIR = Path(__file__).resolve().parent.parent / "data" / "raw"
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+import src  # noqa: E402,F401  (configura a saída em UTF-8 no Windows)
+
+RAW_DIR = ROOT / "data" / "raw"
 DEST = RAW_DIR / "email-EuAll.txt.gz"
 
 # Valores declarados pelo SNAP para o grafo original
