@@ -1,0 +1,16 @@
+% Gerado por src/report_tables.py a partir de results/tables/ -- não editar
+\begin{table}[t]
+  \caption{Estimativas do expoente $\gamma$ de $P(k)\sim k^{-\gamma}$ (LCC).}
+  \label{tab:powerlaw}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lrl}
+  \toprule
+  Método & $\gamma$ & Observação \\
+  \midrule
+  Regressão $P(k)$, log-binning & 1,94 & $R^2 = 0{,}983$ \\
+  Regressão na CCDF & 2,03 & $R^2 = 0{,}904$ \\
+  MLE, $k_{min}=1$ (cabeça) & 2,83 & KS = 0,031 \\
+  MLE, $k_{min}=9$ (cauda) & 1,74 & KS = 0,052; 3.762 vértices \\
+  \bottomrule
+\end{tabular}}
+\end{table}

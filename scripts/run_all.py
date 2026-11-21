@@ -29,6 +29,7 @@ STEPS = [
     ["-m", "src.smallworld"],
     ["-m", "src.powerlaw"],
     ["-m", "src.robustness"],
+    ["-m", "src.report_tables"],
 ]
 QUICK_CAPABLE = {"src.benchmark", "src.robustness"}
 

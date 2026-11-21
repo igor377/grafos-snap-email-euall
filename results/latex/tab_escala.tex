@@ -1,0 +1,15 @@
+% Gerado por src/report_tables.py a partir de results/tables/ -- não editar
+\begin{table}[t]
+  \caption{Complexidade observada: inclinação em log-log do tempo médio contra o tamanho da entrada e contra a função teórica $f(n)$ (ideal: 1).}
+  \label{tab:escala}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lrrrlrr}
+  \toprule
+  Algoritmo & Teórico & Observado & $R^2$ & $f(n)$ & Exp. vs.\ $f$ & $R^2$ \\
+  \midrule
+  BFS & 1 & 1,50 & 0,995 & $V+E$ & 1,50 & 0,995 \\
+  Dijkstra & 1 & 1,53 & 0,993 & $(V+E)\log V$ & 1,36 & 0,994 \\
+  Floyd-Warshall & 3 & 2,98 & 1,000 & $V^3$ & 0,99 & 1,000 \\
+  \bottomrule
+\end{tabular}}
+\end{table}
