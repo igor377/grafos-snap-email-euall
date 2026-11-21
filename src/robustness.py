@@ -12,10 +12,12 @@ Métricas após a remoção:
 
 Cenários:
   (a) aleatório: R = 30 repetições, r vértices sorteados uniformemente;
-  (b) direcionado: ranking FIXO por centralidade de grau (calculada uma vez no
-      grafo original), removendo os r primeiros. O grau foi escolhido (uma das
-      centralidades recomendadas) porque a betweenness exata custa O(V·E),
-      ≈ 7,6 × 10^10 operações aqui.
+  (b) direcionado: ranking FIXO por centralidade (calculada uma vez no grafo
+      original), removendo os r primeiros. Usamos duas centralidades:
+        - grau (remove os hubs);
+        - PageRank (influência global; implementação própria em
+          src/algorithms/pagerank.py).
+      A betweenness exata não foi usada por custar O(V·E) ≈ 7,6 × 10^10 operações.
 
 Uso:
     python -m src.robustness            # completo (~6 min)
@@ -33,6 +35,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from src.algorithms.pagerank import pagerank
 from src.distances import sampled_paths
 from src.load import FIGURES_DIR, save_figure, TABLES_DIR, load_lcc
 from src.metrics import degrees
@@ -118,28 +121,38 @@ def main() -> None:
     rand = pd.DataFrame(random_rows)
     rand.to_csv(TABLES_DIR / "parte3_robustez_aleatoria.csv", index=False)
 
+    # Rankings FIXOS, calculados uma vez no grafo original (desempate pelo id)
     deg = degrees(adj)
-    ranking = sorted(range(n), key=lambda v: (-deg[v], v))
-    target = metrics_after_removal(adj, set(ranking[:r]), PATH_SOURCES, SEED)
-    print(f"Direcionada (grau): {target}")
+    pr, iters = pagerank(n, edges)
+    rankings = {
+        "grau": sorted(range(n), key=lambda v: (-deg[v], v)),
+        "pagerank": sorted(range(n), key=lambda v: (-pr[v], v)),
+    }
+    overlap = len(set(rankings["grau"][:r]) & set(rankings["pagerank"][:r])) / r
+    print(f"PageRank convergiu em {iters} iterações; sobreposição dos top-r "
+          f"(grau × PageRank) = {overlap:.1%}")
+    targets = {}
+    for name, ranking in rankings.items():
+        targets[name] = metrics_after_removal(adj, set(ranking[:r]), PATH_SOURCES, SEED)
+        print(f"Direcionada ({name}): {targets[name]}")
 
-    metrics = ["A_fracao_maior_componente", "B_num_componentes", "C_caminho_medio",
-               "D_fracao_isolados"]
     rows = []
-    for mname in metrics:
+    for mname in METRICS:
         mean = statistics.fmean(rand[mname])
         sd = statistics.stdev(rand[mname]) if reps > 1 else 0.0
         rows.append({"metrica": mname, "original": base[mname], "aleatoria_media": mean,
-                     "aleatoria_desvio": sd, "direcionada_grau": target[mname]})
+                     "aleatoria_desvio": sd,
+                     **{f"direcionada_{k}": t[mname] for k, t in targets.items()}})
     summary = pd.DataFrame(rows)
-    a = summary.set_index("metrica").loc["A_fracao_maior_componente"]
-    summary.attrs["razoes"] = (a["aleatoria_media"] / a["original"],
-                               a["direcionada_grau"] / a["original"])
     summary.to_csv(TABLES_DIR / "parte3_robustez.csv", index=False)
+    pd.DataFrame([{"top_r": r, "sobreposicao_grau_pagerank": overlap,
+                   "iteracoes_pagerank": iters}]).to_csv(
+        TABLES_DIR / "parte3_robustez_rankings.csv", index=False)
     print()
     print(summary.to_string(index=False))
-    print(f"\nS_rand/S0 = {summary.attrs['razoes'][0]:.4f}   "
-          f"S_target/S0 = {summary.attrs['razoes'][1]:.4f}")
+    a = summary.set_index("metrica").loc["A_fracao_maior_componente"]
+    print(f"\nS_rand/S0 = {a['aleatoria_media'] / a['original']:.4f}   " + "   ".join(
+        f"S_{k}/S0 = {a[f'direcionada_{k}'] / a['original']:.2e}" for k in targets))
 
     plot_robustness(rand, summary, r)
 
