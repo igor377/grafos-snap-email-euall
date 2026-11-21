@@ -1,0 +1,16 @@
+medida,grafo_completo,lcc,status,metodo
+Número de vértices,265214,224832,Computado (exato),Contagem
+Número de arestas,364481,339925,Computado (exato),Contagem (não dirigido simples)
+Grau mínimo,0,1,Computado (exato),Lista de adjacência
+Grau máximo,7636,7636,Computado (exato),Lista de adjacência
+Grau médio,2.7486,3.0238,Computado (exato),2m/n
+Distribuição de graus,-,ver figura,Computado (exato),distribuicao_graus.csv / distribuicao_graus.png
+Densidade,1.036e-05,1.345e-05,Computado (exato),2m / (n(n-1))
+Número de componentes conexas,15836,1,Computado (exato),BFS
+Tamanho de cada componente,ver tabela,-,Computado (exato),componentes_tamanhos.csv / componentes_frequencia.csv
+Diâmetro,∞ (desconexo),14,Computado (exato),"BoundingDiameters (Takes & Kosters, 2011), 4 BFS; no grafo completo é infinito por ser desconexo"
+Raio,∞ (desconexo),7,Computado (exato),"BoundingDiameters, 4 BFS"
+Comprimento médio dos caminhos,-,4.1271 [IC95%: 4.0978; 4.1564],Aproximado (amostragem),"BFS de 500 fontes aleatórias; o exato exige V BFS ≈ 1,3×10^11 operações"
+Coeficiente de clusterização médio,0.0671,0.0791,Computado (exato),Contagem de triângulos por vértice
+Número de triângulos,267313,267313,Computado (exato),"Algoritmo forward, O(m^1.5)"
+Visualização,-,amostra de 300 vértices,Computado (amostra),visualizacao_amostra.png; o grafo completo é ilegível

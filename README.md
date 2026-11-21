@@ -111,6 +111,28 @@ python -m src.clustering
 Número de triângulos (algoritmo *forward*), coeficiente de clusterização médio e
 transitividade, no grafo completo e na LCC. Gera `parte1_clusterizacao.csv`.
 
+```bash
+python -m src.visualize
+python -m src.part1_summary
+```
+
+Distribuição de graus (`distribuicao_graus.csv/.png`, escalas linear e log-log),
+visualização de uma amostra de 300 vértices em torno dos 5 maiores hubs
+(`visualizacao_amostra.png`) e a tabela-resumo da Parte I com o status de cada medida,
+computada, aproximada ou não computada, e o método (`parte1_resumo.csv`).
+
+| Medida | Grafo completo | LCC | Status |
+|---|---:|---:|---|
+| Vértices | 265.214 | 224.832 | exato |
+| Arestas | 364.481 | 339.925 | exato |
+| Grau mín / máx / médio | 0 / 7.636 / 2,75 | 1 / 7.636 / 3,02 | exato |
+| Densidade | 1,04×10⁻⁵ | 1,34×10⁻⁵ | exato |
+| Componentes conexas | 15.836 | 1 | exato |
+| Diâmetro / raio | ∞ (desconexo) | 14 / 7 | exato |
+| Comprimento médio dos caminhos | – | 4,13 (IC 95%: 4,10–4,16) | amostragem |
+| Clusterização média | 0,0671 | 0,0791 | exato |
+| Triângulos | 267.313 | 267.313 | exato |
+
 ### Testes
 
 ```bash
