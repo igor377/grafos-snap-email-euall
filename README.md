@@ -178,6 +178,16 @@ verossimilhança discreta (Clauset et al., 2009) com k_min escolhido por
 Kolmogorov–Smirnov. Gera `parte3_powerlaw.csv`, `parte3_powerlaw_sensibilidade.csv`
 (γ em função de k_min) e `lei_de_potencia.png`.
 
+```bash
+python -m src.robustness   # ~6 min
+```
+
+Robustez na LCC com remoção de r = ⌊0,05·N⌋ = 11.241 vértices: 30 remoções aleatórias e
+remoção direcionada pelo ranking fixo de **grau**. Métricas A (fração na maior
+componente), B (nº de componentes), C (caminho médio na maior componente) e D (fração de
+isolados). Gera `parte3_robustez.csv`, `parte3_robustez_aleatoria.csv` e `robustez.png`
+(boxplots com média ± desvio).
+
 ### Testes
 
 ```bash
