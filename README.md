@@ -40,4 +40,16 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-> Instruções completas de execução serão adicionadas ao longo do desenvolvimento.
+## Execução
+
+### 1. Download dos dados brutos
+
+```bash
+python scripts/download_data.py
+```
+
+Baixa `email-EuAll.txt.gz` do SNAP para `data/raw/` (não versionado) e confere se o
+arquivo tem os 265.214 vértices e 420.045 arestas declarados pelo SNAP.
+Use `--force` para baixar novamente.
+
+> Os demais passos serão adicionados ao longo do desenvolvimento.
