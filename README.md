@@ -104,6 +104,13 @@ Na LCC: diâmetro e raio **exatos** pelo algoritmo *BoundingDiameters* (Takes & 
 2011) e comprimento médio dos caminhos **estimado** por BFS a partir de 100 e 500 fontes
 aleatórias (IC 95%). Gera `parte1_diametro_raio.csv` e `parte1_caminhos_amostragem.csv`.
 
+```bash
+python -m src.clustering
+```
+
+Número de triângulos (algoritmo *forward*), coeficiente de clusterização médio e
+transitividade, no grafo completo e na LCC. Gera `parte1_clusterizacao.csv`.
+
 ### Testes
 
 ```bash
