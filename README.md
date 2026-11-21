@@ -86,6 +86,16 @@ Gera (e versiona) em `data/processed/`:
 O grafo original é **não ponderado**. Para os algoritmos ponderados foram atribuídos
 pesos sintéticos inteiros uniformes em `[1, 10]` (semente 42). O subgrafo herda os pesos da LCC.
 
+### 4. Parte I – Métricas estruturais
+
+```bash
+python -m src.metrics
+```
+
+Gera em `results/tables/`: `parte1_basicas.csv` (vértices, arestas, graus, densidade,
+componentes; grafo completo e LCC), `componentes_tamanhos.csv` (tamanho de **cada**
+componente), `componentes_frequencia.csv`; e em `results/figures/`: `componentes_tamanhos.png`.
+
 ### Testes
 
 ```bash

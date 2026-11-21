@@ -1,0 +1,10 @@
+metrica,grafo_completo,lcc
+vertices,265214.0,224832.0
+arestas,364481.0,339925.0
+grau_min,0.0,1.0
+grau_max,7636.0,7636.0
+grau_medio,2.748580391683697,3.023813336179903
+densidade,1.0363671432711432e-05,1.344927228086831e-05
+componentes,15836.0,1.0
+maior_componente,224832.0,224832.0
+menor_componente,1.0,224832.0
