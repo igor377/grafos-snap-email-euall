@@ -52,4 +52,26 @@ Baixa `email-EuAll.txt.gz` do SNAP para `data/raw/` (não versionado) e confere 
 arquivo tem os 265.214 vértices e 420.045 arestas declarados pelo SNAP.
 Use `--force` para baixar novamente.
 
+### 2. Tratamento
+
+```bash
+python -m src.treatment
+```
+
+Aplica, nesta ordem: remoção de auto-loops → conversão para não dirigido simples →
+extração da maior componente conexa. Gera `results/tables/tratamento_evolucao.csv`:
+
+| Etapa | Vértices | Arestas |
+|---|---:|---:|
+| Grafo bruto (dirigido) | 265.214 | 420.045 |
+| Após remoção de auto-loops (dirigido) | 265.214 | 418.956 |
+| Após conversão para não dirigido simples | 265.214 | 364.481 |
+| Maior componente conexa (LCC) | 224.832 | 339.925 |
+
+### Testes
+
+```bash
+python -m pytest
+```
+
 > Os demais passos serão adicionados ao longo do desenvolvimento.

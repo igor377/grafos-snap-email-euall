@@ -1,0 +1,5 @@
+etapa,vertices,arestas
+Grafo bruto (dirigido),265214,420045
+Após remoção de auto-loops (dirigido),265214,418956
+Após conversão para não dirigido simples,265214,364481
+Maior componente conexa (LCC),224832,339925
