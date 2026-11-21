@@ -1,0 +1,5 @@
+metodo,gamma,R2,observacao
+Regressão log-log de P(k) (log-binning),1.9416600289553054,0.9828304024046262,k ≥ 1
+Regressão log-log da CCDF,2.027047207591085,0.9040352998012812,k ≥ 1
+"MLE discreta, k_min por KS (cabeça)",2.830788741571845,,k ≥ 1 (224832 vértices); KS = 0.0306; erro padrão = 0.0039
+"MLE discreta, k_min ≥ 5 por KS (cauda)",1.7401052094215061,,k ≥ 9 (3762 vértices); KS = 0.0523; erro padrão = 0.0121

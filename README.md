@@ -158,6 +158,26 @@ para n < 30), `parte2_resultados.csv` (saída de cada algoritmo), `parte2_escala
 `parte2_expoentes.csv` (tempo × tamanho da entrada; a inclinação em log-log é o
 expoente observado), além das figuras `tempos_algoritmos.png` e `escala_algoritmos.png`.
 
+### 6. Parte III – Propriedades da rede
+
+```bash
+python -m src.smallworld   # ~10 min
+```
+
+Small-world **sem bibliotecas prontas**: C e L da LCC contra 5 realizações de um
+Erdős–Rényi G(n, m) gerado por código próprio (mesmos n e m, logo o mesmo ⟨k⟩), mais os
+valores analíticos ⟨k⟩/n e ln n / ln⟨k⟩; σ = (C/C_r)/(L/L_r). Gera `parte3_smallworld.csv`
+e `parte3_smallworld_er.csv`.
+
+```bash
+python -m src.powerlaw
+```
+
+Lei de potência: P(k) com log-binning e CCDF em log-log, ajuste linear e máxima
+verossimilhança discreta (Clauset et al., 2009) com k_min escolhido por
+Kolmogorov–Smirnov. Gera `parte3_powerlaw.csv`, `parte3_powerlaw_sensibilidade.csv`
+(γ em função de k_min) e `lei_de_potencia.png`.
+
 ### Testes
 
 ```bash
