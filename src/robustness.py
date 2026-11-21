@@ -34,7 +34,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from src.distances import sampled_paths
-from src.load import FIGURES_DIR, TABLES_DIR, load_lcc
+from src.load import FIGURES_DIR, save_figure, TABLES_DIR, load_lcc
 from src.metrics import degrees
 from src.treatment import build_adjacency
 
@@ -89,12 +89,18 @@ def metrics_after_removal(adj, removed: set[int], k_sources: int, seed: int) -> 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--quick", action="store_true")
+    parser.add_argument("--plots-only", action="store_true",
+                        help="apenas redesenha a figura a partir dos CSVs existentes")
     args = parser.parse_args()
     reps = 3 if args.quick else 30
 
     n, edges, _ = load_lcc()
-    adj = build_adjacency(n, edges)
     r = int(FRACTION * n)
+    if args.plots_only:
+        plot_robustness(pd.read_csv(TABLES_DIR / "parte3_robustez_aleatoria.csv"),
+                        pd.read_csv(TABLES_DIR / "parte3_robustez.csv"), r)
+        return
+    adj = build_adjacency(n, edges)
     print(f"N = {n}, r = ⌊0,05·N⌋ = {r}")
 
     base = metrics_after_removal(adj, set(), PATH_SOURCES, SEED)
@@ -135,29 +141,46 @@ def main() -> None:
     print(f"\nS_rand/S0 = {summary.attrs['razoes'][0]:.4f}   "
           f"S_target/S0 = {summary.attrs['razoes'][1]:.4f}")
 
-    titles = {"A_fracao_maior_componente": "A: S/N (maior componente)",
-              "B_num_componentes": "B: nº de componentes",
-              "C_caminho_medio": "C: caminho médio na maior comp.",
-              "D_fracao_isolados": "D: fração de isolados"}
+    plot_robustness(rand, summary, r)
+
+
+METRICS = ["A_fracao_maior_componente", "B_num_componentes", "C_caminho_medio",
+           "D_fracao_isolados"]
+TITLES = {"A_fracao_maior_componente": "A: S/N (maior componente)",
+          "B_num_componentes": "B: nº de componentes",
+          "C_caminho_medio": "C: caminho médio na maior comp.",
+          "D_fracao_isolados": "D: fração de isolados"}
+TARGET_STYLE = {"direcionada_grau": ("D", "red", "grau"),
+                "direcionada_pagerank": ("^", "darkorange", "PageRank")}
+
+
+def plot_robustness(rand: pd.DataFrame, summary: pd.DataFrame, r: int) -> None:
+    """Boxplots das remoções aleatórias + original + cada ataque direcionado do resumo."""
+    s = summary.set_index("metrica")
+    targets = [c for c in summary.columns if c.startswith("direcionada_")]
+    reps = len(rand)
     fig, axes = plt.subplots(1, 4, figsize=(16, 4.5))
-    for ax, mname in zip(axes, metrics):
+    for ax, mname in zip(axes, METRICS):
         vals = rand[mname]
         mean, sd = vals.mean(), vals.std(ddof=1) if reps > 1 else 0.0
         ax.boxplot(vals, widths=0.5)
         ax.errorbar([1.35], [mean], yerr=[sd], fmt="o", color="C0", capsize=4,
                     label=f"aleatória: {mean:.4g} ± {sd:.2g}")
-        ax.scatter([1], [base[mname]], marker="s", color="gray", zorder=3,
-                   label=f"original: {base[mname]:.4g}")
-        ax.scatter([1], [target[mname]], marker="D", color="red", zorder=3,
-                   label=f"direcionada (grau): {target[mname]:.4g}")
-        ax.set_title(titles[mname])
+        ax.scatter([1], [s.loc[mname, "original"]], marker="s", color="gray", zorder=3,
+                   label=f"original: {s.loc[mname, 'original']:.4g}")
+        for i, col in enumerate(targets):
+            marker, color, label = TARGET_STYLE.get(col, ("x", "black", col))
+            ax.scatter([0.85 + 0.3 * i], [s.loc[mname, col]], marker=marker, color=color,
+                       s=45, zorder=3, label=f"ataque ({label}): {s.loc[mname, col]:.4g}")
+        ax.set_title(TITLES[mname])
         ax.set_xticks([])
         ax.grid(True, axis="y", alpha=0.3)
         ax.legend(fontsize=7, loc="best")
+    names = ", ".join(TARGET_STYLE.get(c, ("", "", c))[2] for c in targets)
     fig.suptitle(f"Robustez: remoção de 5% dos vértices (r = {r}); boxplot = {reps} "
-                 f"remoções aleatórias; losango = ataque aos de maior grau")
+                 f"remoções aleatórias; marcadores = ataque direcionado ({names})")
     fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "robustez.png", dpi=150)
+    save_figure(fig, "robustez")
     plt.close(fig)
 
 

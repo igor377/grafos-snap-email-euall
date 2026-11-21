@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import pandas as pd
 
-from src.load import FIGURES_DIR, TABLES_DIR, load_lcc
+from src.load import FIGURES_DIR, save_figure, TABLES_DIR, load_lcc
 from src.metrics import degrees
 from src.treatment import build_adjacency
 
@@ -46,7 +46,7 @@ def plot_degree_distribution(dist: pd.DataFrame) -> None:
     ax2.set_title("Distribuição de graus (escala log-log)")
     ax2.grid(True, which="both", alpha=0.3)
     fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "distribuicao_graus.png", dpi=150)
+    save_figure(fig, "distribuicao_graus")
     plt.close(fig)
 
 
@@ -83,7 +83,7 @@ def plot_sample(adj, nodes: list[int]) -> None:
                  f"arestas em torno dos 5 maiores hubs")
     ax.axis("off")
     fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "visualizacao_amostra.png", dpi=150)
+    save_figure(fig, "visualizacao_amostra")
     plt.close(fig)
 
 

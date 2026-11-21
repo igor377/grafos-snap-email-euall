@@ -43,7 +43,7 @@ from src.algorithms.tarjan import (
     tarjan_scc,
 )
 from src.algorithms.weighted import build_weighted_adjacency
-from src.load import FIGURES_DIR, TABLES_DIR, load_directed, load_lcc, load_subgraph
+from src.load import FIGURES_DIR, save_figure, TABLES_DIR, load_directed, load_lcc, load_subgraph
 from src.prepare_data import bfs_sample
 from src.treatment import build_adjacency, induced_relabel
 
@@ -184,7 +184,7 @@ def plot_scaling(df: pd.DataFrame) -> pd.DataFrame:
         ax.grid(True, which="both", alpha=0.3)
         ax.legend()
     fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "escala_algoritmos.png", dpi=150)
+    save_figure(fig, "escala_algoritmos")
     plt.close(fig)
     return pd.DataFrame(slopes)
 
@@ -199,15 +199,22 @@ def plot_times(timing: pd.DataFrame) -> None:
     ax.set_title("Tempo de execução observado dos algoritmos")
     ax.grid(True, axis="x", which="both", alpha=0.3)
     fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "tempos_algoritmos.png", dpi=150)
+    save_figure(fig, "tempos_algoritmos")
     plt.close(fig)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--quick", action="store_true")
+    parser.add_argument("--plots-only", action="store_true",
+                        help="apenas redesenha as figuras a partir dos CSVs existentes")
     args = parser.parse_args()
     runs, fw_runs, reps = (5, 3, 2) if args.quick else (30, 10, 5)
+
+    if args.plots_only:
+        plot_times(pd.read_csv(TABLES_DIR / "parte2_tempos.csv"))
+        plot_scaling(pd.read_csv(TABLES_DIR / "parte2_escala.csv"))
+        return
 
     timing, results = run_benchmark(runs, fw_runs)
     timing.to_csv(TABLES_DIR / "parte2_tempos.csv", index=False)

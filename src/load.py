@@ -39,6 +39,16 @@ def read_edgelist(path: Path = RAW_FILE) -> tuple[int, list[tuple[int, int]]]:
     return max_id + 1, edges
 
 
+def save_figure(fig, name: str, dpi: int = 150) -> None:
+    """Salva `fig` em results/figures/<name>.png e .pdf (vetorial, para o LaTeX).
+
+    O PDF é gravado sem data de criação, para que reexecuções não alterem o arquivo.
+    """
+    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+    fig.savefig(FIGURES_DIR / f"{name}.png", dpi=dpi)
+    fig.savefig(FIGURES_DIR / f"{name}.pdf", metadata={"CreationDate": None, "ModDate": None})
+
+
 def open_write(path: Path):
     """Abre para escrita em texto; se .gz, usa mtime=0 para o arquivo ser determinístico."""
     path = Path(path)

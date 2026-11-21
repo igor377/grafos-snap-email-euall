@@ -29,7 +29,7 @@ import numpy as np
 import pandas as pd
 from scipy.special import zeta as hurwitz_zeta  # ζ(s, q) = Σ_{k≥0} (k + q)^(−s)
 
-from src.load import FIGURES_DIR, TABLES_DIR, load_lcc
+from src.load import FIGURES_DIR, save_figure, TABLES_DIR, load_lcc
 from src.metrics import degrees
 from src.treatment import build_adjacency
 
@@ -188,7 +188,7 @@ def main() -> None:
     ax2.grid(True, which="both", alpha=0.3)
     ax2.legend(fontsize=8)
     fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "lei_de_potencia.png", dpi=150)
+    save_figure(fig, "lei_de_potencia")
     plt.close(fig)
 
 

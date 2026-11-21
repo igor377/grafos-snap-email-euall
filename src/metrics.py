@@ -10,7 +10,7 @@ Uso:
 
 import pandas as pd
 
-from src.load import FIGURES_DIR, TABLES_DIR, load_lcc
+from src.load import FIGURES_DIR, save_figure, TABLES_DIR, load_lcc
 from src.treatment import build_adjacency, connected_components, treat
 
 
@@ -92,7 +92,7 @@ def plot_component_sizes(freq_df: pd.DataFrame, largest: int) -> None:
                 arrowprops={"arrowstyle": "->"})
     ax.grid(True, which="both", alpha=0.3)
     fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "componentes_tamanhos.png", dpi=150)
+    save_figure(fig, "componentes_tamanhos")
     plt.close(fig)
 
 
