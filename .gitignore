@@ -1,0 +1,19 @@
+# Ambiente Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Dados brutos (baixados por scripts/download_data.py)
+data/raw/
+
+# Documentos locais de planejamento (não fazem parte do repositório)
+PLANEJAMENTO.md
+
+# Editores / sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
