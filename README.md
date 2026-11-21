@@ -68,6 +68,24 @@ extração da maior componente conexa. Gera `results/tables/tratamento_evolucao.
 | Após conversão para não dirigido simples | 265.214 | 364.481 |
 | Maior componente conexa (LCC) | 224.832 | 339.925 |
 
+### 3. Conjunto de dados tratado
+
+```bash
+python -m src.prepare_data
+```
+
+Gera (e versiona) em `data/processed/`:
+
+| Arquivo | Conteúdo |
+|---|---|
+| `lcc.edgelist.gz` | LCC não dirigida (224.832 vértices, 339.925 arestas), ids renumerados `0..n-1`, colunas `u v w` |
+| `lcc_node_map.csv.gz` | correspondência `novo_id → id_original` do SNAP |
+| `directed_no_loops.edgelist.gz` | grafo dirigido sem auto-loops (265.214 vértices, 418.956 arestas), usado no Tarjan |
+| `subgraph_300.edgelist.gz` | subgrafo induzido de 300 vértices (372 arestas), obtido por BFS na LCC, usado no Bellman-Ford e no Floyd-Warshall |
+
+O grafo original é **não ponderado**. Para os algoritmos ponderados foram atribuídos
+pesos sintéticos inteiros uniformes em `[1, 10]` (semente 42). O subgrafo herda os pesos da LCC.
+
 ### Testes
 
 ```bash
