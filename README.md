@@ -188,6 +188,16 @@ componente), B (nº de componentes), C (caminho médio na maior componente) e D 
 isolados). Gera `parte3_robustez.csv`, `parte3_robustez_aleatoria.csv` e `robustez.png`
 (boxplots com média ± desvio).
 
+### 7. Notebook
+
+```bash
+jupyter notebook notebooks/analise.ipynb
+```
+
+Reúne todas as tabelas e figuras na ordem do relatório. Com `RECOMPUTE = False` (padrão)
+apenas exibe os resultados de `results/`; com `RECOMPUTE = True` refaz todo o pipeline
+(~25 min).
+
 ### Testes
 
 ```bash
