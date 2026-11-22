@@ -8,10 +8,13 @@ Por isso:
   que mantém limites inferior/superior de excentricidade para cada vértice
   e para quando os limites do diâmetro e do raio coincidem. Em redes reais
   esparsas costuma convergir com poucas BFS.
-* Comprimento médio dos caminhos ESTIMADO: média das distâncias a partir de
-  k fontes uniformes (k = 100 e k = 500, semente fixa), com IC 95% sobre as
-  médias por fonte. Também reportamos as excentricidades das fontes amostradas
-  (estimativa ingênua de diâmetro/raio), para comparação.
+* Comprimento médio dos caminhos EXATO: 84% dos vértices são folhas (grau 1), e
+  a soma das distâncias de uma folha é deduzida da do seu único vizinho
+  (S(ℓ) = n − 2 + S(p)). Bastam BFS a partir dos ~36 mil vértices não folha,
+  feitas por níveis com numpy sobre a representação CSR (~40 ms cada, ~25 min).
+* Comprimento médio ESTIMADO (para comparação e validação do estimador usado
+  nos modelos nulos e na robustez): média das distâncias a partir de k fontes
+  uniformes (k = 100 e k = 500, semente fixa), com IC 95%.
 
 Uso:
     python -m src.distances
@@ -113,9 +116,102 @@ def sampled_paths(adj, k: int, seed: int = SEED) -> dict:
             "ecc_max_amostra": max(eccs), "ecc_min_amostra": min(eccs)}
 
 
+def to_csr(adj) -> tuple[np.ndarray, np.ndarray]:
+    """Lista de adjacência -> (indptr, indices) no formato CSR."""
+    deg = np.fromiter((len(a) for a in adj), dtype=np.int64, count=len(adj))
+    indptr = np.zeros(len(adj) + 1, dtype=np.int64)
+    np.cumsum(deg, out=indptr[1:])
+    indices = np.fromiter((w for a in adj for w in a), dtype=np.int64, count=int(indptr[-1]))
+    return indptr, indices
+
+
+def bfs_distance_sum(indptr, indices, source: int, dist: np.ndarray,
+                     owner: np.ndarray | None = None) -> tuple[int, int, int]:
+    """BFS vetorizada (por níveis) a partir de `source`.
+
+    Retorna (soma das distâncias, nº de vértices alcançados, excentricidade). `dist` é
+    um vetor de trabalho preenchido com -1, que é restaurado ao final; `owner` é um
+    vetor de trabalho de mesmo tamanho (criado se não for passado).
+    """
+    if owner is None:
+        owner = np.empty_like(dist)
+    dist[source] = 0
+    frontier = np.array([source], dtype=np.int64)
+    visited = [frontier]
+    total, reached, level = 0, 1, 0
+    while True:
+        starts, ends = indptr[frontier], indptr[frontier + 1]
+        lens = ends - starts
+        size = int(lens.sum())
+        if size == 0:
+            break
+        # posições de todos os vizinhos da fronteira em `indices`
+        offsets = np.repeat(starts - np.concatenate(([0], np.cumsum(lens)[:-1])), lens)
+        nbrs = indices[offsets + np.arange(size)]
+        nbrs = nbrs[dist[nbrs] < 0]
+        if nbrs.size == 0:
+            break
+        level += 1
+        # desduplicação sem ordenar: marca todos com o nível e mantém, de cada vértice,
+        # só a primeira ocorrência (a posição gravada por último em `owner`)
+        dist[nbrs] = level
+        pos = np.arange(nbrs.size)
+        owner[nbrs] = pos
+        nbrs = nbrs[owner[nbrs] == pos]
+        total += level * nbrs.size
+        reached += nbrs.size
+        visited.append(nbrs)
+        frontier = nbrs
+    for v in visited:
+        dist[v] = -1
+    return total, reached, level
+
+
+def exact_average_path_length(adj, verbose: bool = False) -> dict:
+    """Comprimento médio EXATO dos caminhos de um grafo conexo, com redução das folhas.
+
+    Se ℓ é folha com vizinho único p, então d(ℓ, t) = 1 + d(p, t) para todo t ≠ ℓ,
+    logo S(ℓ) = Σ_t d(ℓ, t) = (n − 2) + S(p). Basta uma BFS por vértice NÃO folha;
+    a soma das folhas sai das somas dos seus vizinhos.
+    L = Σ_v S(v) / (n (n − 1)).
+    """
+    n = len(adj)
+    indptr, indices = to_csr(adj)
+    deg = np.diff(indptr)
+    dist = np.full(n, -1, dtype=np.int64)
+    owner = np.empty(n, dtype=np.int64)
+    sums = np.zeros(n, dtype=np.int64)
+    non_leaves = np.flatnonzero(deg != 1)
+    t0 = time.perf_counter()
+    for i, v in enumerate(non_leaves):
+        s, reached, _ = bfs_distance_sum(indptr, indices, int(v), dist, owner)
+        if reached != n:
+            raise ValueError("o grafo precisa ser conexo")
+        sums[v] = s
+        if verbose and (i + 1) % 5000 == 0:
+            el = time.perf_counter() - t0
+            print(f"  {i + 1}/{len(non_leaves)} BFS ({el:.0f}s, faltam ~"
+                  f"{el / (i + 1) * (len(non_leaves) - i - 1):.0f}s)")
+    leaves = np.flatnonzero(deg == 1)
+    parents = indices[indptr[leaves]]
+    if np.any(deg[parents] == 1):  # duas folhas adjacentes: só ocorre se n = 2
+        raise ValueError("folha ligada a folha")
+    sums[leaves] = (n - 2) + sums[parents]
+    total = int(sums.sum())
+    return {"L_exato": total / (n * (n - 1)), "soma_distancias": total,
+            "bfs_executadas": int(len(non_leaves)), "folhas_deduzidas": int(len(leaves)),
+            "tempo_s": time.perf_counter() - t0}
+
+
 def main() -> None:
     n, edges, _ = load_lcc()
     adj = build_adjacency(n, edges)
+
+    print("Comprimento médio exato (BFS só dos vértices não folha)...")
+    ex = exact_average_path_length(adj, verbose=True)
+    pd.DataFrame([ex]).to_csv(TABLES_DIR / "parte1_caminho_exato.csv", index=False)
+    print(f"L exato = {ex['L_exato']:.6f} com {ex['bfs_executadas']} BFS "
+          f"({ex['folhas_deduzidas']} folhas deduzidas) em {ex['tempo_s']:.0f}s")
 
     rows = []
     for k in (100, 500):
