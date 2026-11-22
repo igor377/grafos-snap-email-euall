@@ -29,7 +29,8 @@ instituição de pesquisa europeia, de out/2003 a mar/2005. É um grafo **dirigi
 ```bash
 python -m venv .venv
 .venv\Scripts\activate              # Linux/macOS: source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.txt       # faixas de versão compatíveis
+# ou: pip install -r requirements-lock.txt   (versões exatas testadas)
 
 python scripts/run_all.py           # pipeline completo (~50 min)
 python -m pytest                    # testes (~10 s)
@@ -86,7 +87,7 @@ todos eles nesta ordem.
 |---|---|---|---|---|
 | 1 | `python scripts/download_data.py` | Baixa `email-EuAll.txt.gz` e confere 265.214 / 420.045 | `data/raw/` | 2 s |
 | 2 | `python -m src.treatment` | Tratamento e tabela de evolução | `tratamento_evolucao.csv` | 5 s |
-| 3 | `python -m src.prepare_data` | Grafo tratado, subgrafo de 300 vértices, pesos sintéticos | `data/processed/*` | 10 s |
+| 3 | `python -m src.prepare_data` | Grafo tratado, subgrafo de 300 vértices, pesos pela reciprocidade | `data/processed/*` | 10 s |
 | 4 | `python -m src.metrics` | Graus, densidade, componentes e o tamanho de cada uma | `parte1_basicas.csv`, `componentes_*.csv` | 10 s |
 | 5 | `python -m src.distances` | Diâmetro e raio exatos; caminho médio por amostragem | `parte1_diametro_raio.csv`, `parte1_caminhos_amostragem.csv` | 1,5 min |
 | 6 | `python -m src.clustering` | Triângulos, clusterização, transitividade | `parte1_clusterizacao.csv` | 10 s |
@@ -130,9 +131,11 @@ Arquivos em `data/processed/` (o `.gz` é gerado de forma determinística):
 | `directed_no_loops.edgelist.gz` | grafo dirigido sem auto-loops (ids originais) |
 | `subgraph_300.edgelist.gz` | subgrafo induzido de 300 vértices (372 arestas), obtido por BFS na LCC |
 
-O grafo é **não ponderado**. Para Dijkstra, Bellman-Ford, Floyd-Warshall, Prim e Kruskal
-foram atribuídos **pesos sintéticos inteiros uniformes em [1, 10]** (semente 42). O subgrafo
-herda os pesos da LCC.
+**Pesos derivados dos dados.** O SNAP não informa quantos e-mails cada par trocou, mas informa
+a direção. Para Dijkstra, Bellman-Ford, Floyd-Warshall, Prim e Kruskal, cada aresta recebe
+**peso 1 se a comunicação foi nos dois sentidos** (laço forte; 54.475 arestas, 16%) e
+**peso 2 se foi de mão única** (laço fraco). Caminhos mínimos preferem cadeias recíprocas, e a
+árvore geradora mínima usa o máximo de laços recíprocos. O subgrafo herda os pesos da LCC.
 
 ## Resultados principais
 
@@ -145,7 +148,7 @@ herda os pesos da LCC.
 | Densidade | 1,04×10⁻⁵ | 1,34×10⁻⁵ | exato |
 | Componentes conexas | 15.836 | 1 | exato (BFS) |
 | Diâmetro / raio | ∞ (desconexo) | **14 / 7** | exato (*BoundingDiameters*, 4 BFS) |
-| Comprimento médio dos caminhos | – | 4,13 (IC 95%: 4,10–4,16) | BFS a partir de 500 fontes |
+| Comprimento médio dos caminhos | – | **4,1182** | exato: BFS dos 36.536 vértices não folha; a soma de cada folha é deduzida da do seu vizinho (S(folha) = n − 2 + S(vizinho)) |
 | Clusterização média | 0,0671 | 0,0791 | exato |
 | Triângulos | 267.313 | 267.313 | exato (algoritmo *forward*) |
 
@@ -158,17 +161,18 @@ Tempos com 30 execuções e IC 95% pela Normal (Z). O Floyd-Warshall em Python p
 
 | Algoritmo | Grafo | Complexidade | Média (s) | IC 95% (s) |
 |---|---|---|---:|---|
-| BFS | LCC | O(V+E) | 0,198 | [0,183; 0,213] |
-| DFS (iterativa) | LCC | O(V+E) | 0,320 | [0,316; 0,323] |
-| Eulerianidade | LCC | O(V+E) | 0,166 | [0,165; 0,167] |
-| Dijkstra (heap) | LCC ponderada | O((V+E) log V) | 0,770 | [0,767; 0,774] |
+| BFS | LCC | O(V+E) | 0,175 | [0,172; 0,178] |
+| DFS (iterativa) | LCC | O(V+E) | 0,337 | [0,327; 0,347] |
+| Eulerianidade (não dirigido) | LCC | O(V+E) | 0,184 | [0,169; 0,198] |
+| Eulerianidade (dirigido) | grafo dirigido | O(V+E) | 0,537 | [0,530; 0,545] |
+| Dijkstra (heap) | LCC ponderada | O((V+E) log V) | 0,692 | [0,660; 0,724] |
 | Bellman-Ford | subgrafo 300 | O(V·E) | 0,0003 | [0,0003; 0,0003] |
-| Floyd-Warshall (Python puro) | subgrafo 300 | O(V³) | 1,952 | [1,940; 1,964] |
-| Floyd-Warshall (numpy) | subgrafo 300 | O(V³) | 0,057 | [0,057; 0,058] |
-| Tarjan (SCC) | grafo dirigido | O(V+E) | 0,607 | [0,603; 0,611] |
-| Tarjan (pontes/articulações) | LCC | O(V+E) | 0,577 | [0,569; 0,586] |
-| Prim (heap) | LCC ponderada | O(E log V) | 0,904 | [0,897; 0,910] |
-| Kruskal (union-find) | LCC ponderada | O(E log V) | 0,526 | [0,523; 0,529] |
+| Floyd-Warshall (Python puro) | subgrafo 300 | O(V³) | 2,058 | [2,013; 2,104] |
+| Floyd-Warshall (numpy) | subgrafo 300 | O(V³) | 0,059 | [0,058; 0,060] |
+| Tarjan (SCC) | grafo dirigido | O(V+E) | 0,642 | [0,627; 0,657] |
+| Tarjan (pontes/articulações) | LCC | O(V+E) | 0,578 | [0,562; 0,593] |
+| Prim (heap) | LCC ponderada | O(E log V) | 0,728 | [0,701; 0,755] |
+| Kruskal (union-find) | LCC ponderada | O(E log V) | 0,412 | [0,411; 0,414] |
 
 Tempos variam de máquina para máquina. Os valores acima foram medidos no ambiente de
 desenvolvimento, e a saída de cada algoritmo está em `results/tables/parte2_resultados.csv`.
@@ -181,39 +185,41 @@ IC 95% por tamanho. O tempo médio é ajustado em log-log contra a função teó
 
 | Algoritmo | f(n) | Inclinação (R²) | Vértices testados |
 |---|---|---:|---|
-| BFS | V+E | 1,49 (0,999) | 14 mil – 224.832 |
-| DFS | V+E | 1,27 (0,990) | 14 mil – 224.832 |
-| Eulerianidade | V+E | 1,31 (0,998) | 14 mil – 224.832 |
-| Tarjan (pontes/articulações) | V+E | 0,98 (0,987) | 14 mil – 224.832 |
-| Dijkstra | (V+E) log V | 1,31 (0,999) | 14 mil – 224.832 |
-| Prim | E log V | 1,06 (0,995) | 14 mil – 224.832 |
-| Kruskal | E log V | 1,05 (0,998) | 14 mil – 224.832 |
-| Bellman-Ford | V·E | 0,61 (0,979) | 1 mil – 16 mil |
-| Floyd-Warshall | V³ | 1,00 (1,000) | 50 – 300 |
-| Floyd-Warshall (numpy) | V³ | 1,21 (0,995) | 250 – 1.000 |
+| BFS | V+E | 1,53 (0,999) | 14 mil – 224.832 |
+| DFS | V+E | 1,32 (0,999) | 14 mil – 224.832 |
+| Eulerianidade | V+E | 1,47 (0,999) | 14 mil – 224.832 |
+| Tarjan (pontes/articulações) | V+E | 1,14 (1,000) | 14 mil – 224.832 |
+| Dijkstra | (V+E) log V | 1,35 (1,000) | 14 mil – 224.832 |
+| Prim | E log V | 1,13 (1,000) | 14 mil – 224.832 |
+| Kruskal | E log V | 1,11 (0,999) | 14 mil – 224.832 |
+| Bellman-Ford | V·E | 0,56 (0,992) | 1.000 – 16.000 |
+| Floyd-Warshall | V³ | 0,99 (1,000) | 50 – 300 |
+| Floyd-Warshall (numpy) | V³ | 1,22 (0,997) | 250 – 1.000 |
 
 Como ler:
-- **Floyd-Warshall, Tarjan, Prim e Kruskal** confirmam a complexidade teórica (≈ 1).
-- **Floyd-Warshall vetorizado (1,21)** é um caso controlado do efeito de memória: a matriz
-  de distâncias (8V² bytes) cresce de 0,5 MB a 8 MB e deixa de caber na memória cache, de
-  modo que cada operação fica mais cara, embora o número de operações continue V³.
-- **Bellman-Ford fica bem abaixo de 1** porque o V·E é o pior caso. Com a parada
-  antecipada, ele convergiu em só 4 ou 5 rodadas em todos os tamanhos, então o custo real
-  foi proporcional a k·E, com k pequeno.
-- **BFS, DFS, Eulerianidade e Dijkstra ficam acima de 1** (1,27 a 1,49), com R² ≥ 0,99, ou
-  seja, não é ruído. O número de operações é linear: os testes confirmam que cada vértice
-  entra uma vez na fila ou na pilha. O que cresce é o custo de cada operação em Python.
-  Como o Tarjan percorre as mesmas listas e ficou em 0,98, o tamanho do grafo sozinho não
-  explica o desvio. A hipótese, não isolada experimentalmente, é de efeitos do
-  interpretador, como a alocação de listas de tamanho V e o gerenciamento de memória. A
-  faixa testada, de pouco mais de uma ordem de grandeza, também limita a precisão do
-  expoente.
+- **Floyd-Warshall, Kruskal, Prim e Tarjan** ficam próximos da complexidade teórica
+  (0,99 a 1,14).
+- **Floyd-Warshall vetorizado (1,22)** é um caso controlado do
+  efeito de memória: a matriz de distâncias (8V² bytes) cresce de 0,5 MB a 8 MB e deixa de caber
+  na memória cache, de modo que cada operação fica mais cara, embora o número de operações
+  continue V³.
+- **Bellman-Ford fica bem abaixo de 1** porque o V·E é o pior caso. Com a parada antecipada,
+  ele convergiu em só 3 rodadas em todos os tamanhos, então o custo real foi
+  proporcional a k·E, com k pequeno.
+- **BFS, DFS, Eulerianidade e Dijkstra ficam acima de 1** (1,32 a
+  1,53), com R² ≥ 0,99. O número de operações é linear: os testes confirmam que
+  cada vértice entra uma vez na fila ou na pilha. O que cresce é o custo de cada operação em
+  Python. A hipótese, não isolada experimentalmente, é de efeitos de memória e do
+  interpretador, como a alocação de listas de tamanho V.
+- **Precisão limitada:** repetindo o experimento, os expoentes dos algoritmos lineares
+  variaram cerca de 0,15 entre execuções, e a faixa testada cobre pouco mais de uma ordem de
+  grandeza. As inclinações são tendências, não expoentes precisos.
 
 ### Parte III: propriedades da rede
 
 | Pergunta | Resultado |
 |---|---|
-| Small-world? | **Sim**: C = 0,079 contra C_rand ≈ 0,000008 (cerca de 10⁴ vezes maior); L = 4,13 contra L_rand ≈ 11,1; σ ≈ 2,7×10⁴ |
+| Small-world? | **Sim, mas modesto quando os graus são preservados.** Contra o **Erdős–Rényi**: C = 0,079 contra 7,8×10⁻⁶ (cerca de 10⁴ vezes maior), L = 4,12 (exato) contra 11,1, σ ≈ 2,7×10⁴. Contra a **reconexão que preserva os graus** (2º modelo nulo): C_nulo = 0,034, C só 2,3 vezes maior, L_nulo = 3,62, σ = 2,1. A maior parte do agrupamento aparente vem dos hubs; o excedente é estrutural |
 | Lei de potência? | **Aproximadamente**: cauda pesada, com γ ≈ 1,9–2,0 nos ajustes lineares, mas dois regimes (γ ≈ 2,8 na cabeça e γ ≈ 1,7 na cauda, por máxima verossimilhança) e corte acima de k ≈ 1.000 |
 | Robusto à remoção aleatória de 5%? | **Sim**: a maior componente mantém 90,7% ± 1,7% dos vértices |
 | Robusto à remoção dos 5% mais centrais? | **Não**, por nenhuma das três centralidades (implementações próprias): a maior componente cai para 6 vértices pelo **grau**, 3 pelo **PageRank** e 11 pela **betweenness**, com mais de 99,6% dos restantes isolados. A betweenness escolhe ~30% de alvos diferentes e mesmo assim produz o mesmo colapso |
@@ -222,20 +228,21 @@ Como ler:
 
 ## Relatório
 
-O relatório (template WebMedia) não é versionado: é entregue como PDF. Suas tabelas são
-geradas por `python -m src.report_tables` em `results/latex/` (e copiadas para
-`relatorio/tabelas/`, se essa pasta existir), e as figuras são os PDFs vetoriais de
-`results/figures/`. Assim, nenhum número das tabelas do relatório é digitado à mão.
+O relatório (template WebMedia) está em `relatorio/`: `main.tex`, `referencias.bib`,
+`webmedia.cls`, `tabelas/` e `figuras/`. `python -m src.report_tables` gera, a partir dos
+CSVs, **as tabelas** (`tab_*.tex`) e **as macros com os números citados no texto**
+(`numeros.tex`, por exemplo `\Lexato` e `\sigmaConf`), e copia as figuras PDF. Assim,
+nem as tabelas nem os principais números do texto são digitados à mão.
 
 ## Reprodutibilidade
 
-- **Sementes fixas** (42) em todo sorteio: pesos sintéticos, subgrafo, amostras de BFS,
-  grafos Erdős–Rényi e remoções aleatórias. Reexecutar o pipeline reproduz as mesmas
+- **Sementes fixas** (42) em todo sorteio: subgrafo, amostras de BFS, betweenness,
+  grafos Erdős–Rényi, reconexão que preserva graus, modelos BA/WS e remoções aleatórias. Reexecutar o pipeline reproduz as mesmas
   tabelas e figuras; só os tempos da Parte II variam.
 - Os `.gz` de `data/processed/` são gravados sem data de criação, então reexecutar não
   altera os arquivos versionados.
 - Cada algoritmo próprio é conferido com o NetworkX em `tests/`
-  (`python -m pytest`, 117 testes).
+  (`python -m pytest`, 124 testes).
 
 ## Referências
 
