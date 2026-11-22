@@ -1,22 +1,22 @@
 % Gerado por src/report_tables.py a partir de results/tables/ -- não editar
 \begin{table}[t]
-  \caption{Complexidade observada: inclinação em log-log do tempo médio contra a função teórica $f(n)$ (ideal: 1), com 30 repetições por tamanho.}
+  \caption{Complexidade observada: inclinação em log-log do tempo médio contra a função teórica $f(n)$ (ideal: 1) e, nos lineares e quase lineares, contra $V$, com 30 repetições por tamanho.}
   \label{tab:escala}
 \resizebox{\columnwidth}{!}{%
-\begin{tabular}{llrrrl}
+\begin{tabular}{llrrrrl}
   \toprule
-  Algoritmo & $f(n)$ & Inclinação & $R^2$ & Vértices & Observação \\
+  Algoritmo & $f(n)$ & Incl. $f(n)$ & Incl. $V$ & $R^2$ & Vértices & Observação \\
   \midrule
-  BFS & $V+E$ & 1,53 & 0,999 & 14.000--224.832 &  \\
-  DFS & $V+E$ & 1,32 & 0,999 & 14.000--224.832 &  \\
-  Eulerianidade & $V+E$ & 1,47 & 0,999 & 14.000--224.832 &  \\
-  Tarjan (pontes/articulações) & $V+E$ & 1,14 & 1,000 & 14.000--224.832 &  \\
-  Dijkstra & $(V+E)\log V$ & 1,35 & 1,000 & 14.000--224.832 &  \\
-  Prim & $E\log V$ & 1,13 & 1,000 & 14.000--224.832 &  \\
-  Kruskal & $E\log V$ & 1,11 & 0,999 & 14.000--224.832 &  \\
-  Bellman-Ford & $V\cdot E$ & 0,56 & 0,992 & 1.000--16.000 & 3 a 3 rodadas (parada antecipada) \\
-  Floyd-Warshall & $V^3$ & 0,99 & 1,000 & 50--300 &  \\
-  Floyd-Warshall (numpy) & $V^3$ & 1,22 & 0,997 & 250--1.000 &  \\
+  BFS & $V+E$ & 1,53 & 1,07 & 0,999 & 14.000--224.832 &  \\
+  DFS & $V+E$ & 1,32 & 0,93 & 0,999 & 14.000--224.832 &  \\
+  Eulerianidade & $V+E$ & 1,47 & 1,03 & 0,999 & 14.000--224.832 &  \\
+  Tarjan (pontes/articulações) & $V+E$ & 1,14 & 0,79 & 1,000 & 14.000--224.832 &  \\
+  Dijkstra & $(V+E)\log V$ & 1,35 & 1,07 & 1,000 & 14.000--224.832 &  \\
+  Prim & $E\log V$ & 1,13 & 0,76 & 1,000 & 14.000--224.832 &  \\
+  Kruskal & $E\log V$ & 1,11 & 0,75 & 0,999 & 14.000--224.832 &  \\
+  Bellman-Ford & $V\cdot E$ & 0,56 & -- & 0,992 & 1.000--16.000 & 3 a 3 rodadas (parada antecipada) \\
+  Floyd-Warshall & $V^3$ & 0,99 & -- & 1,000 & 50--300 &  \\
+  Floyd-Warshall (numpy) & $V^3$ & 1,22 & -- & 0,997 & 250--1.000 &  \\
   \bottomrule
 \end{tabular}}
 \end{table}

@@ -213,7 +213,8 @@ teórica, medimos ainda o tempo em subgrafos de tamanhos crescentes e estimamos 
 expoente pela inclinação de uma reta em escala log-log.
 
 \textbf{Ambiente.} Notebook pessoal com Windows~10 e Python~3.14.3 (numpy~2.5,
-scipy~1.18). Todos os sorteios usam semente fixa, de modo que o pipeline reproduz as
+scipy~1.18). Os testes e o pipeline reduzido também foram executados no Python~3.12.10,
+com os mesmos resultados. Todos os sorteios usam semente fixa, de modo que o pipeline reproduz as
 mesmas tabelas e figuras. Apenas os tempos variam entre execuções.
 
 %% ===================================================================
@@ -363,15 +364,18 @@ fica mais cara, embora o número de operações continue exatamente $V^3$. Na ve
 Python puro, o custo do interpretador por operação domina e mascara esse efeito.
 
 BFS ($\expBfs$), Eulerianidade ($\expEuler$), Dijkstra ($\expDijkstra$) e DFS ($\expDfs$)
-cresceram mais rápido que o previsto, com ICs estreitos e $R^2 \ge 0{,}99$. O número de
-operações é linear: os testes confirmam que cada vértice entra uma única vez na fila ou na
-pilha. O que cresce é o custo de cada operação. Atribuímos o desvio a efeitos de memória e
-do interpretador Python, como a alocação de listas de tamanho $V$, cujo custo relativo
-aumenta quando os dados deixam de caber na cache. O Floyd-Warshall vetorizado mostra que
-esse efeito existe e é mensurável, mas, para os algoritmos lineares, ele continua sendo uma
-\emph{hipótese não testada}, não algo que tenhamos isolado. Testá-la exigiria, por exemplo,
-contadores de falhas de cache do processador, ou medir o mesmo algoritmo com os vértices
-renumerados ao acaso (pior localidade de memória) e comparar as inclinações. Há ainda um limite de precisão: repetindo o
+parecem crescer mais rápido que o previsto contra $V+E$, mas o desvio vem do próprio
+experimento. Como os subgrafos são prefixos da ordem de BFS, os hubs entram primeiro e as
+folhas por último: a razão $E/V$ cai de \evMaiorEscala{} no menor subgrafo para
+\evMenorEscala{} na LCC, de modo que $V$ cresce 16 vezes enquanto $V+E$ cresce só 7. Se
+o custo por vértice (alocação, inicialização e visita) for maior que o custo por aresta,
+a inclinação contra $V+E$ fica acima de 1 mesmo com custo linear. Para separar os dois
+custos, ajustamos $t \approx a\cdot V + b\cdot E$ por mínimos quadrados não negativos:
+o modelo linear descreve os sete algoritmos lineares e quase lineares com
+$R^2 \ge \Rnm$, e as inclinações contra $V$ ficam entre \expVMin{} e \expVMax{}
+(Tabela~\ref{tab:escala}). Assim, não há evidência de custo superlinear; o pequeno
+excesso que resta na BFS e no Dijkstra (cerca de 1,07 contra $V$) é compatível com efeitos
+de memória, como o do Floyd-Warshall vetorizado, mas não o isolamos. Há ainda um limite de precisão: repetindo o
 experimento inteiro, os expoentes dos algoritmos lineares variaram cerca de $0{,}15$ entre
 execuções (o Tarjan, por exemplo, oscilou entre aproximadamente 1,0 e 1,1), e a faixa
 testada cobre pouco mais de uma ordem de grandeza. Por isso, interpretamos as inclinações
@@ -604,9 +608,10 @@ distribuição de graus é indispensável.
 Floyd-Warshall, com a mesma complexidade, mostra que o tempo real depende fortemente
 de constantes de implementação. O estudo de escala reforça a lição em dois sentidos: o
 Bellman-Ford, com parada antecipada, ficou muito abaixo do seu pior caso $O(V\cdot E)$,
-e algoritmos lineares como BFS e DFS cresceram acima do previsto. A complexidade
-assintótica conta operações no pior caso, não o custo real de cada operação nem o
-comportamento em instâncias típicas.
+e os algoritmos lineares só pareceram superlineares porque $E/V$ variava entre os
+subgrafos e o custo por vértice supera o custo por aresta. A complexidade assintótica
+conta operações no pior caso e iguala o peso de $V$ e de $E$; ela não dá o custo real de
+cada operação nem o comportamento em instâncias típicas.
 
 \textbf{Lei de potência.} Ajustes lineares em log-log produzem retas convincentes
 ($R^2\approx0{,}98$) mesmo quando a distribuição não é uma lei de potência pura. A
