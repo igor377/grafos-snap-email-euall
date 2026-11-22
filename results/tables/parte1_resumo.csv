@@ -10,7 +10,7 @@ Número de componentes conexas,15836,1,Computado (exato),BFS
 Tamanho de cada componente,ver tabela,-,Computado (exato),componentes_tamanhos.csv / componentes_frequencia.csv
 Diâmetro,∞ (desconexo),14,Computado (exato),"BoundingDiameters (Takes & Kosters, 2011), 4 BFS; no grafo completo é infinito por ser desconexo"
 Raio,∞ (desconexo),7,Computado (exato),"BoundingDiameters, 4 BFS"
-Comprimento médio dos caminhos,-,4.1271 [IC95%: 4.0978; 4.1564],Aproximado (amostragem),"BFS de 500 fontes aleatórias; o exato exige V BFS ≈ 1,3×10^11 operações"
+Comprimento médio dos caminhos,-,4.1182,Computado (exato),BFS dos 36536 vértices não folha + redução das 188296 folhas (S(folha) = n − 2 + S(vizinho)); conferido pela amostra de 500 fontes: 4.1271 [IC95%: 4.0978; 4.1564]
 Coeficiente de clusterização médio,0.0671,0.0791,Computado (exato),Contagem de triângulos por vértice
 Número de triângulos,267313,267313,Computado (exato),"Algoritmo forward, O(m^1.5)"
 Visualização,-,amostra de 300 vértices,Computado (amostra),visualizacao_amostra.png; o grafo completo é ilegível

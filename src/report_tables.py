@@ -126,7 +126,7 @@ def tab_parte1():
          "--"],
         ["Diâmetro", r"$\infty$ (desconexo)", inteiro(dr["diametro_lo"])],
         ["Raio", r"$\infty$ (desconexo)", inteiro(dr["raio_lo"])],
-        ["Comprimento médio $L$", "--", dec(p["L_medio"], 3)],
+        ["Comprimento médio $L$", "--", dec(csv("parte1_caminho_exato")["L_exato"].iloc[0], 4)],
         ["Clusterização média $C$", dec(c.loc[g, "clusterizacao_media"], 4),
          dec(c.loc[l, "clusterizacao_media"], 4)],
         ["Transitividade", dec(c.loc[g, "transitividade"], 4), dec(c.loc[l, "transitividade"], 4)],
@@ -138,6 +138,7 @@ def tab_parte1():
 
 def tab_status():
     dr = csv("parte1_diametro_raio").iloc[0]
+    ex = csv("parte1_caminho_exato").iloc[0]
     n_comp = csv("parte1_basicas").set_index("metrica").loc["componentes", "grafo_completo"]
     exato = "Computado (exato)" if dr["exato"] else "Aproximado (limites)"
     rows = [
@@ -150,8 +151,9 @@ def tab_status():
         ["Diâmetro e raio", exato,
          rf"\emph{{BoundingDiameters}}~\cite{{takes2011}}, {inteiro(dr['bfs'])} BFS; "
          "infinitos no grafo completo (desconexo)"],
-        ["Comprimento médio dos caminhos", "Aproximado (amostragem)",
-         r"BFS a partir de 500 fontes; o exato exigiria $\approx1{,}3\times10^{11}$ operações"],
+        ["Comprimento médio dos caminhos", "Computado (exato)",
+         f"BFS a partir dos {inteiro(ex['bfs_executadas'])} vértices não folha; a soma das "
+         f"{inteiro(ex['folhas_deduzidas'])} folhas é deduzida da do seu vizinho"],
         ["Clusterização média e triângulos", "Computado (exato)",
          r"Algoritmo \emph{forward}~\cite{schank2005}"],
         ["Visualização", "Computado (amostra)",
@@ -209,17 +211,24 @@ def tab_smallworld():
     s = csv("parte3_smallworld")
     L, C, sig = s.iloc[0], s.iloc[1], s.iloc[2]
     rows = [
-        ["$L$", dec(L.real, 3), dec(L.er_medido, 3), dec(L.er_analitico, 3)],
-        ["$C$", dec(C.real, 4), sci(C.er_medido, 1), sci(C.er_analitico, 1)],
-        ["$C/C_{rand}$", "--", r"$\approx$ " + inteiro(C.real / C.er_medido),
-         r"$\approx$ " + inteiro(C.real / C.er_analitico)],
-        ["$L/L_{rand}$", "--", dec(L.real / L.er_medido, 3), dec(L.real / L.er_analitico, 3)],
-        [r"$\sigma$", "--", r"$\approx$ " + inteiro(sig.real), r"$\approx$ " + inteiro(sig.er_analitico)],
+        ["$L$", dec(L.real, 3), dec(L.er_medido, 3), dec(L.er_analitico, 3),
+         dec(L.config_medido, 3)],
+        ["$C$", dec(C.real, 4), sci(C.er_medido, 1), sci(C.er_analitico, 1),
+         dec(C.config_medido, 4)],
+        ["$C/C_{nulo}$", "--", r"$\approx$ " + inteiro(C.real / C.er_medido),
+         r"$\approx$ " + inteiro(C.real / C.er_analitico), dec(C.real / C.config_medido, 2)],
+        ["$L/L_{nulo}$", "--", dec(L.real / L.er_medido, 3), dec(L.real / L.er_analitico, 3),
+         dec(L.real / L.config_medido, 3)],
+        [r"$\sigma$", "--", r"$\approx$ " + inteiro(sig.real),
+         r"$\approx$ " + inteiro(sig.er_analitico), dec(sig.config_medido, 2)],
     ]
     n_er = len(csv("parte3_smallworld_er"))
-    table("smallworld", "Small-world: grafo real (LCC) contra Erd\\H{o}s--Rényi equivalente "
-          f"(média de {n_er} realizações) e valores analíticos.", "lrrr",
-          ["Métrica", "Real", "ER medido", "ER analítico"], rows)
+    n_cf = len(csv("parte3_smallworld_config"))
+    table("smallworld", "Small-world: grafo real (LCC, $L$ exato) contra dois modelos nulos: "
+          f"Erd\\H{{o}}s--Rényi equivalente (média de {n_er} realizações, e valores "
+          f"analíticos) e reconexão que preserva os graus (média de {n_cf} realizações).",
+          "lrrrr", ["Métrica", "Real", "ER medido", "ER analítico", "Graus preservados"],
+          rows, resize=True)
 
 
 def tab_powerlaw():
@@ -294,12 +303,130 @@ def tab_modelos():
           rows, wide=True, resize=True)
 
 
+def numeros() -> dict[str, str]:
+    """Macros LaTeX (\\newcommand) com os números citados no TEXTO do relatório, lidos
+    dos CSVs. Gravadas em results/latex/numeros.tex; o main.tex faz \\input dele."""
+    ev = csv("tratamento_evolucao")["arestas"].tolist()
+    evv = csv("tratamento_evolucao")["vertices"].tolist()
+    b = csv("parte1_basicas").set_index("metrica")
+    dr = csv("parte1_diametro_raio").iloc[0]
+    ex = csv("parte1_caminho_exato").iloc[0]
+    sp = csv("parte1_caminhos_amostragem").set_index("k")
+    cl = csv("parte1_clusterizacao").set_index("escopo")
+    dg = csv("distribuicao_graus").set_index("grau")
+    t = csv("parte2_tempos").set_index("algoritmo")
+    res = csv("parte2_resultados").set_index("algoritmo")["resultado"]
+    ex2 = csv("parte2_expoentes").set_index("algoritmo")["expoente_vs_f"]
+    esc = csv("parte2_escala")
+    esc_bf = esc[esc["algoritmo"] == "Bellman-Ford"]
+    sw = csv("parte3_smallworld").set_index("metrica")
+    pl = csv("parte3_powerlaw")["gamma"].tolist()
+    rb = csv("parte3_robustez").set_index("metrica")
+    rk = csv("parte3_robustez_rankings").iloc[0]
+    hb = csv("parte3_hubs").iloc[0]
+    hr = csv("parte3_hubs_resumo").iloc[0]
+    n_lcc = b.loc["vertices", "lcc"]
+
+    def first_int(s):
+        return int(re.search(r"peso total (\d+)", s).group(1))
+
+    def tsec(name, nd=3):
+        return dec(t.loc[name, "media_s"], nd)
+
+    L, C = "Comprimento médio L", "Clusterização média C"
+    S = "σ = (C/C_r)/(L/L_r)"
+    A = "A_fracao_maior_componente"
+    m = {
+        # tratamento e Parte I
+        "nVBruto": inteiro(evv[0]), "nEBruto": inteiro(ev[0]),
+        "nLoops": inteiro(ev[0] - ev[1]), "nEUnd": inteiro(ev[2]),
+        "nRecip": inteiro(ev[1] - ev[2]),
+        "pctRecip": dec(100 * 2 * (ev[1] - ev[2]) / ev[1], 0),
+        "nVLcc": inteiro(n_lcc), "nELcc": inteiro(b.loc["arestas", "lcc"]),
+        "pctVLcc": dec(100 * n_lcc / evv[0], 1),
+        "pctELcc": dec(100 * b.loc["arestas", "lcc"] / ev[2], 1),
+        "nComp": inteiro(b.loc["componentes", "grafo_completo"]),
+        "grauMax": inteiro(b.loc["grau_max", "lcc"]),
+        "grauMedioLcc": dec(b.loc["grau_medio", "lcc"], 2),
+        "pctFolhas": dec(100 * dg.loc[1, "P_k"], 1),
+        "diametro": inteiro(dr["diametro_lo"]), "raio": inteiro(dr["raio_lo"]),
+        "nBfsDiam": inteiro(dr["bfs"]),
+        "Lexato": dec(ex["L_exato"], 3), "nBfsLexato": inteiro(ex["bfs_executadas"]),
+        "nFolhasDeduzidas": inteiro(ex["folhas_deduzidas"]),
+        "minLexato": dec(ex["tempo_s"] / 60, 0),
+        "Lamostra": dec(sp.loc[500, "L_medio"], 3),
+        "LamostraInf": dec(sp.loc[500, "L_ic95_inf"], 3),
+        "LamostraSup": dec(sp.loc[500, "L_ic95_sup"], 3),
+        "Ccompleto": dec(cl.loc["grafo_completo", "clusterizacao_media"], 4),
+        "Clcc": dec(cl.loc["lcc", "clusterizacao_media"], 4),
+        "transit": dec(cl.loc["lcc", "transitividade"], 4),
+        "triangulos": inteiro(cl.loc["lcc", "triangulos"]),
+        # Parte II
+        "tBfs": tsec("BFS"), "tDijkstra": tsec("Dijkstra (heap)"),
+        "razaoDijkstraBfs": dec(t.loc["Dijkstra (heap)", "media_s"] / t.loc["BFS", "media_s"], 1),
+        "tFwPuro": dec(t.loc["Floyd-Warshall (Python puro)", "media_s"], 2),
+        "tFwNumpy": dec(t.loc["Floyd-Warshall (numpy)", "media_s"], 3),
+        "razaoFw": dec(t.loc["Floyd-Warshall (Python puro)", "media_s"]
+                       / t.loc["Floyd-Warshall (numpy)", "media_s"], 0),
+        "pesoMst": inteiro(first_int(res["Prim (heap)"])),
+        # pesos 1 (recíproco) e 2 (mão única): peso = 2(V−1) − nº de arestas recíprocas
+        "recipNaArvore": inteiro(2 * (n_lcc - 1) - first_int(res["Prim (heap)"])),
+        "kruskalVsPrim": (
+            "Kruskal foi mais rápido: a ordenação das arestas é feita em C pelo Python, e o "
+            "\\emph{union-find} com compressão de caminho e união por rank tem custo quase "
+            "constante."
+            if t.loc["Kruskal (union-find)", "media_s"] < t.loc["Prim (heap)", "media_s"]
+            else "Prim foi mais rápido neste grafo, apesar da mesma complexidade $O(E\\log V)$."),
+        "distMaxDijkstra": re.search(r"dist\. máx\. (\d+)", res["Dijkstra (heap)"]).group(1),
+        "rodadasBf": re.search(r"(\d+) rodadas", res["Bellman-Ford"]).group(1),
+        "rodadasEscala": (lambda lo, hi: str(lo) if lo == hi else f"{lo} a {hi}")(
+            int(esc_bf["rodadas"].min()), int(esc_bf["rodadas"].max())),
+        "tFwNumpyMil": dec(esc.query("algoritmo == 'Floyd-Warshall (numpy)'")
+                           .sort_values("V")["media_s"].iloc[-1], 1),
+        **{f"exp{k}": dec(ex2[v], 2) for k, v in (
+            ("Bfs", "BFS"), ("Dfs", "DFS"), ("Euler", "Eulerianidade"),
+            ("Tarjan", "Tarjan (pontes/articulações)"), ("Dijkstra", "Dijkstra"),
+            ("Prim", "Prim"), ("Kruskal", "Kruskal"), ("Bf", "Bellman-Ford"),
+            ("Fw", "Floyd-Warshall"), ("FwNumpy", "Floyd-Warshall (numpy)"))},
+        # Parte III
+        "Lrand": dec(sw.loc[L, "er_medido"], 1), "Lconf": dec(sw.loc[L, "config_medido"], 2),
+        "Crand": sci(sw.loc[C, "er_medido"], 1).strip("$"),
+        "Cconf": dec(sw.loc[C, "config_medido"], 4),
+        "CsobreCr": inteiro(sw.loc[C, "razao_real_er"]),
+        "CsobreCconf": dec(sw.loc[C, "razao_real_config"], 1),
+        "sigmaER": sci(sw.loc[S, "real"], 1).strip("$"),
+        "sigmaConf": dec(sw.loc[S, "config_medido"], 1),
+        "gammaBins": dec(pl[0], 2), "gammaCcdf": dec(pl[1], 2),
+        "gammaCabeca": dec(pl[2], 2), "gammaCauda": dec(pl[3], 2),
+        "Srand": dec(rb.loc[A, "aleatoria_media"], 3),
+        "SrandDesvio": dec(rb.loc[A, "aleatoria_desvio"], 3),
+        "pctSrand": dec(100 * rb.loc[A, "aleatoria_media"], 1),
+        **{f"maiorComp{k}": inteiro(round(rb.loc[A, f"direcionada_{c}"] * n_lcc))
+           for k, c in (("Grau", "grau"), ("Pr", "pagerank"), ("Btw", "betweenness"))},
+        "sobrepGrauPr": dec(100 * rk["sobreposicao_grau_pagerank"], 0),
+        "sobrepGrauBtw": dec(100 * rk["sobreposicao_grau_betweenness"], 0),
+        "sobrepPrBtw": dec(100 * rk["sobreposicao_pagerank_betweenness"], 0),
+        "hubRemetentes": inteiro(hb["remetentes_entrada"]),
+        "hubDestinatarios": inteiro(hb["destinatarios_saida"]),
+        "hubFolhas": dec(100 * hb["frac_vizinhos_folha"], 2),
+        "pctFolhasTopDez": dec(100 * hr["fracao_das_folhas_nos_top10"], 0),
+    }
+    # "{,}" em vez de "," para o decimal funcionar também dentro de fórmulas ($...$)
+    m = {k: (v if "{,}" in v else v.replace(",", "{,}")) for k, v in m.items()}
+    lines = ["% Gerado por src/report_tables.py a partir de results/tables/ -- não editar"]
+    lines += [f"\\newcommand{{\\{k}}}{{{v}}}" for k, v in m.items()]
+    (LATEX_DIR / "numeros.tex").write_text("\n".join(lines) + "\n", encoding="utf-8",
+                                           newline="\n")
+    return m
+
+
 def main() -> None:
     LATEX_DIR.mkdir(parents=True, exist_ok=True)
     for fn in (tab_tratamento, tab_parte1, tab_status, tab_algoritmos, tab_escala,
                tab_smallworld, tab_powerlaw, tab_robustez, tab_hubs, tab_modelos):
         fn()
-    files = sorted(LATEX_DIR.glob("tab_*.tex"))
+    numeros()
+    files = sorted(LATEX_DIR.glob("tab_*.tex")) + [LATEX_DIR / "numeros.tex"]
     print("Tabelas geradas:", ", ".join(f.name for f in files))
     if REPORT_DIR.exists():
         (REPORT_DIR / "tabelas").mkdir(exist_ok=True)

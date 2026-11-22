@@ -16,6 +16,7 @@ def main() -> None:
     b = pd.read_csv(TABLES_DIR / "parte1_basicas.csv").set_index("metrica")
     dr = pd.read_csv(TABLES_DIR / "parte1_diametro_raio.csv").iloc[0]
     paths = pd.read_csv(TABLES_DIR / "parte1_caminhos_amostragem.csv").set_index("k").loc[500]
+    exact_l = pd.read_csv(TABLES_DIR / "parte1_caminho_exato.csv").iloc[0]
     cl = pd.read_csv(TABLES_DIR / "parte1_clusterizacao.csv").set_index("escopo")
 
     def both(key, fmt="{:.0f}"):
@@ -41,10 +42,12 @@ def main() -> None:
         ("Raio", "∞ (desconexo)", str(dr["raio_lo"]),
          exact if dr["exato"] else "Aproximado (limites)",
          f"BoundingDiameters, {dr['bfs']} BFS"),
-        ("Comprimento médio dos caminhos", "-",
-         f"{paths['L_medio']:.4f} [IC95%: {paths['L_ic95_inf']:.4f}; {paths['L_ic95_sup']:.4f}]",
-         "Aproximado (amostragem)",
-         "BFS de 500 fontes aleatórias; o exato exige V BFS ≈ 1,3×10^11 operações"),
+        ("Comprimento médio dos caminhos", "-", f"{exact_l['L_exato']:.4f}",
+         exact,
+         f"BFS dos {int(exact_l['bfs_executadas'])} vértices não folha + redução das "
+         f"{int(exact_l['folhas_deduzidas'])} folhas (S(folha) = n − 2 + S(vizinho)); "
+         f"conferido pela amostra de 500 fontes: {paths['L_medio']:.4f} "
+         f"[IC95%: {paths['L_ic95_inf']:.4f}; {paths['L_ic95_sup']:.4f}]"),
         ("Coeficiente de clusterização médio",
          f"{cl.loc['grafo_completo', 'clusterizacao_media']:.4f}",
          f"{cl.loc['lcc', 'clusterizacao_media']:.4f}", exact, "Contagem de triângulos por vértice"),
