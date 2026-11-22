@@ -1,7 +1,11 @@
-numpy
-scipy
-pandas
-matplotlib
-networkx
-pytest
-jupyter
+# Versões testadas: Python 3.14.3, numpy 2.5.5, scipy 1.18.1, pandas 3.1.1,
+# matplotlib 3.11.2, networkx 3.7, pytest 9.2.0, jupyter 1.1.1, nbconvert 7.17.2.
+# Faixas: a partir da versão testada, sem atravessar a próxima versão maior.
+numpy>=2.5,<3
+scipy>=1.18,<2
+pandas>=3.1,<4
+matplotlib>=3.11,<4
+networkx>=3.7,<4
+pytest>=9.2,<10
+jupyter>=1.1,<2
+nbconvert>=7.17,<8
