@@ -6,6 +6,8 @@
 %% Pacotes adicionais deste trabalho (não alteram margens, fontes ou espaçamentos)
 \usepackage[brazil]{babel}
 \graphicspath{{figuras/}{./}}  % aceita as figuras em figuras/ ou na raiz
+% Números citados no texto, gerados a partir dos resultados por src/report_tables.py
+\input{tabelas/numeros}
 
 %%
 %% \BibTeX command to typeset the BibTeX logo in the docs
@@ -41,12 +43,15 @@ Este trabalho analisa o grafo \texttt{email-EuAll} do SNAP, uma rede de e-mails 
 instituição de pesquisa europeia com 265.214 vértices e 420.045 arestas dirigidas,
 atribuído pela regra de mapeamento da matrícula (G34). Após remover auto-loops,
 converter o grafo para não dirigido simples e extrair a maior componente conexa
-(224.832 vértices e 339.925 arestas), calculamos as propriedades estruturais clássicas,
-obtendo diâmetro (14) e raio (7) exatos por meio do algoritmo \emph{BoundingDiameters}.
-Implementamos e medimos o tempo de BFS, DFS, verificação de Eulerianidade, Dijkstra,
-Bellman-Ford, Floyd-Warshall, Tarjan, Prim e Kruskal, reportando média, desvio padrão e
-intervalo de confiança de 95\%. A rede é fortemente \emph{small-world}
-($\sigma \approx 2{,}7\times10^{4}$), tem distribuição de graus de cauda pesada,
+(224.832 vértices e 339.925 arestas), calculamos as propriedades estruturais clássicas
+de forma exata: diâmetro (\diametro) e raio (\raio) pelo algoritmo
+\emph{BoundingDiameters}, e comprimento médio ($\Lexato$) por uma redução que deduz as
+distâncias das folhas. Implementamos e medimos o tempo de BFS, DFS, verificação de
+Eulerianidade, Dijkstra, Bellman-Ford, Floyd-Warshall, Tarjan, Prim e Kruskal, com pesos
+derivados da reciprocidade da comunicação, reportando média, desvio padrão e intervalo de
+confiança de 95\%. A rede é \emph{small-world} contra dois modelos nulos, mas de forma
+modesta quando a sequência de graus é preservada ($\sigma=\sigmaConf$, contra
+$\sigma\approx\sigmaER$ no Erd\H{o}s--Rényi). Ela tem distribuição de graus de cauda pesada,
 compatível apenas aproximadamente com uma lei de potência, e é robusta a falhas
 aleatórias, mas colapsa quando os 5\% de vértices mais centrais são removidos, seja
 por grau, PageRank ou betweenness. Nenhum dos modelos clássicos (Erd\H{o}s--Rényi,
@@ -103,7 +108,7 @@ O código-fonte, o conjunto de dados tratado, as tabelas e figuras geradas e o
 \url{https://github.com/igor377/grafos-snap-email-euall}. O pipeline completo é executado
 por \texttt{python scripts/run\_all.py}, e o notebook \texttt{notebooks/analise.ipynb}
 reúne todos os resultados. As implementações são conferidas contra o NetworkX por
-117 testes automatizados (\texttt{python -m pytest}).
+124 testes automatizados (\texttt{python -m pytest}).
 
 %% ===================================================================
 \section{Descrição do Grafo Original}
@@ -147,14 +152,21 @@ o efeito de cada etapa.
 \end{enumerate}
 
 Não houve tratamento temporal nem de multigrafo, porque o arquivo não contém
-\emph{timestamps} nem arestas repetidas. Como o grafo é não ponderado, os algoritmos
-ponderados usam \textbf{pesos sintéticos} inteiros uniformes em $[1,10]$, sorteados com
-semente fixa (42). O subgrafo herda os pesos da LCC.
+\emph{timestamps} nem arestas repetidas.
+
+\textbf{Pesos derivados dos dados.} O SNAP não informa quantos e-mails cada par trocou,
+mas informa a direção, e a reciprocidade é um indicador clássico da intensidade de um
+laço. Por isso, para os algoritmos ponderados, cada aresta não dirigida recebe
+\textbf{peso 1} se a comunicação ocorreu nos dois sentidos (laço forte) e \textbf{peso 2}
+se ocorreu num só sentido (laço fraco). Assim, os caminhos mínimos preferem cadeias de
+comunicação recíproca, e a árvore geradora mínima usa o máximo possível de relações de
+troca efetiva. O subgrafo herda os pesos da LCC.
 
 \input{tabelas/tab_tratamento}
 
-A conversão para não dirigido reduziu as arestas em 13\% (54.475 pares recíprocos), o
-que indica que apenas cerca de 26\% das arestas dirigidas têm a aresta inversa.
+A conversão para não dirigido reduziu as arestas em 13\% (\nRecip{} pares recíprocos), o
+que indica que apenas cerca de \pctRecip\% das arestas dirigidas têm a aresta inversa. Na
+LCC, essas \nRecip{} arestas recíprocas (16\%) recebem peso 1.
 
 %% ===================================================================
 \section{Metodologia}
@@ -173,11 +185,18 @@ clusterização média de 0,0671, diâmetro 14 e maior componente fortemente con
 vértice, $O(V(V+E)) \approx 1{,}3\times10^{11}$ operações. Usamos o algoritmo
 \emph{BoundingDiameters}~\cite{takes2011}, que mantém limites inferior e superior da
 excentricidade de cada vértice e para quando os limites do diâmetro e do raio
-coincidem. Ele convergiu com apenas 4 BFS e fornece valores exatos.
+coincidem. Ele convergiu com apenas \nBfsDiam{} BFS e fornece valores exatos.
 
-\textbf{Comprimento médio por amostragem.} O comprimento médio $L$ foi estimado pela
-média das distâncias a partir de $k$ fontes uniformes ($k=100$ e $k=500$), com IC de
-95\% calculado sobre as médias por fonte.
+\textbf{Comprimento médio exato.} Uma BFS por vértice seria inviável em Python, mas a
+estrutura do grafo permite uma redução exata. Se $\ell$ é uma folha cujo único vizinho é
+$p$, então $d(\ell,t) = 1 + d(p,t)$ para todo $t \ne \ell$. Logo, a soma das distâncias a
+partir de $\ell$ é $S(\ell) = (n-2) + S(p)$. Basta, portanto, fazer BFS a partir dos
+\nBfsLexato{} vértices que não são folhas, e as somas das \nFolhasDeduzidas{} folhas
+(\pctFolhas\% dos vértices) saem sem nenhuma BFS adicional. Cada BFS foi vetorizada por
+níveis sobre a representação CSR do grafo, e o cálculo levou cerca de \minLexato{}
+minutos. $L = \sum_v S(v)/(n(n-1))$. Para validar o estimador por amostragem usado nos
+modelos nulos e na robustez, também estimamos $L$ com 100 e 500 fontes uniformes, com IC
+de 95\%.
 
 \textbf{Triângulos e clusterização.} Usamos o algoritmo \emph{forward}~\cite{schank2005}
 ($O(m^{3/2})$), que orienta cada aresta segundo a ordem de grau e encontra cada
@@ -230,11 +249,12 @@ o tamanho de cada componente está no repositório
   \label{fig:componentes}
 \end{figure}
 
-\textbf{Distâncias.} O diâmetro é 14 e o raio é 7, ambos exatos. O comprimento médio
-estimado é $L = 4{,}127$ (IC 95\%: $[4{,}098;\,4{,}156]$, 500 fontes). A estimativa com
-100 fontes (4,118; IC $[4{,}037;\,4{,}199]$) é consistente com ela, o que indica que o
-estimador é estável. Assim, dois endereços quaisquer da LCC estão, em média, a pouco mais
-de 4 saltos de distância, apesar dos 224 mil vértices.
+\textbf{Distâncias.} Todas as medidas de distância da LCC são exatas: diâmetro
+\diametro, raio \raio{} e comprimento médio $L = \Lexato$. A estimativa por amostragem
+com 500 fontes ($\Lamostra$, IC 95\%: $[\LamostraInf;\,\LamostraSup]$) contém o valor
+exato, o que valida o estimador usado nos modelos nulos e na robustez. Assim, dois
+endereços quaisquer da LCC estão, em média, a pouco mais de 4 saltos de distância, apesar
+dos 224 mil vértices.
 
 \textbf{Clusterização.} Há 267.313 triângulos, envolvendo 25.132 vértices. A
 clusterização média ($C=0{,}079$) é cerca de 19 vezes maior que a transitividade
@@ -284,19 +304,22 @@ A LCC tem 198.520 vértices de grau ímpar e, portanto, não é euleriana. No di
 conexo. Também implementamos o algoritmo de Hierholzer, que constrói o circuito quando
 ele existe (validado nos testes).
 
-\textbf{Dijkstra e Bellman-Ford.} Os dois se aplicam porque os pesos sintéticos são
-positivos. Com peso unitário, Dijkstra equivaleria à BFS. Dijkstra alcançou toda a LCC
-e foi cerca de 4 vezes mais lento que a BFS, devido ao custo do heap. Bellman-Ford
-($O(V\cdot E)$) foi executado apenas no subgrafo: na LCC seriam até
+\textbf{Dijkstra e Bellman-Ford.} Os dois se aplicam porque os pesos da reciprocidade
+(1 ou 2) são positivos; com peso unitário, Dijkstra equivaleria à BFS. Aqui, o caminho de
+menor custo prefere cadeias de laços recíprocos: a partir do vértice 0, o endereço mais
+``distante'' está a custo \distMaxDijkstra. Dijkstra alcançou toda a LCC e foi cerca de
+\razaoDijkstraBfs{} vezes mais lento que a BFS, devido ao custo do heap. Bellman-Ford
+($O(V\cdot E)$) foi executado no subgrafo: na LCC seriam até
 $224.832 \times 679.850 \approx 1{,}5\times10^{11}$ relaxamentos no pior caso. Ele produziu
-as mesmas distâncias que Dijkstra e parou após apenas 3 das até $V-1=299$ rodadas, graças à
+as mesmas distâncias que Dijkstra e parou após apenas \rodadasBf{} das até $V-1=299$ rodadas, graças à
 parada antecipada: como cada rodada percorre todas as arestas em sequência, uma única
 rodada pode propagar distâncias por vários saltos. Para não depender só desse subgrafo,
 ele também foi medido em subgrafos de até 16 mil vértices no estudo de escala, a seguir.
 Não havendo pesos negativos, Dijkstra é preferível nesse contexto.
 
 \textbf{Floyd-Warshall.} No subgrafo de 300 vértices, a versão em Python puro levou
-1,95~s e a vetorizada (numpy, mesmo algoritmo $O(V^3)$) levou 0,057~s, 34 vezes menos. O
+\tFwPuro~s e a vetorizada (numpy, mesmo algoritmo $O(V^3)$) levou \tFwNumpy~s, cerca de
+\razaoFw{} vezes menos. O
 resultado confere com Dijkstra executado a partir de todas as 300 fontes. Na LCC seriam
 $\approx1{,}1\times10^{16}$ operações e uma matriz de $5\times10^{10}$ células (cerca de
 400~GB), o que é inviável.
@@ -307,9 +330,10 @@ parte da comunicação não é recíproca. Com a mesma técnica de \emph{low-lin
 188.668 pontes (quase todas arestas de folhas) e 2.223 vértices de articulação na LCC.
 
 \textbf{Prim e Kruskal.} Ambos produziram árvores com $V-1 = 224.831$ arestas e o mesmo
-peso total (1.151.996), o que confirma a correção. Kruskal foi mais rápido: a ordenação
-das 339.925 arestas é feita em C pelo Python, e o \emph{union-find} com compressão de
-caminho e união por rank tem custo quase constante.
+peso total (\pesoMst), o que confirma a correção. Com pesos 1 e 2, o peso revela a
+composição da árvore: ela usa \recipNaArvore{} laços recíprocos, ou seja, todos os que
+não fecham ciclo com outros recíprocos, e completa a conexão com laços de mão única.
+\kruskalVsPrim
 
 \textbf{Complexidade observada.} A Figura~\ref{fig:tempos} compara os tempos médios. Para
 estudar o crescimento, medimos \emph{os nove algoritmos} em subgrafos de tamanho
@@ -321,31 +345,33 @@ IC 95\% (Normal) em cada ponto. Em cada painel da Figura~\ref{fig:escala}, o tem
 ajustado em log-log contra a própria função teórica $f(n)$: se ela descreve o custo, a
 inclinação é 1 (Tabela~\ref{tab:escala}).
 
-Floyd-Warshall (1,00 contra $V^3$, $R^2=0{,}9998$), Tarjan (0,98), Kruskal (1,05) e Prim
-(1,06) confirmam a teoria. \textbf{Bellman-Ford} ficou muito abaixo do pior caso
-(0,61 contra $V\cdot E$): com a parada antecipada, ele convergiu em apenas 4 ou 5 rodadas
-em todos os tamanhos. Seu custo real foi, portanto, $O(k\cdot E)$ com $k$ pequeno, e não
-$O(V\cdot E)$, porque a cota de $V-1$ rodadas só é atingida em grafos com caminhos mínimos
-muito longos.
+Floyd-Warshall ($\expFw$ contra $V^3$), Kruskal ($\expKruskal$), Prim ($\expPrim$) e Tarjan
+($\expTarjan$) ficam próximos da teoria. \textbf{Bellman-Ford} ficou muito abaixo do pior
+caso ($\expBf$ contra $V\cdot E$): com a parada antecipada, ele convergiu em apenas
+\rodadasEscala{} rodadas em todos os tamanhos. Seu custo real foi, portanto, $O(k\cdot E)$
+com $k$ pequeno, e não $O(V\cdot E)$, porque a cota de $V-1$ rodadas só é atingida em
+grafos com caminhos mínimos muito longos.
 
 A versão vetorizada do Floyd-Warshall é um caso controlado do efeito de memória. Com 1.000
-vértices ela levou 5,3~s, e sua inclinação contra $V^3$ foi \textbf{1,21}, acima da versão
-em Python puro (1,00). A matriz de distâncias ocupa $8V^2$ bytes, de 0,5~MB com 250
-vértices a 8~MB com 1.000, e cada passo $k$ cria uma matriz temporária do mesmo tamanho.
-Quando elas deixam de caber na memória cache do processador, cada operação fica mais
-cara, embora o número de operações continue exatamente $V^3$. Na versão em Python puro,
-o custo do interpretador por operação domina e mascara esse efeito.
+vértices ela levou \tFwNumpyMil~s, e sua inclinação contra $V^3$ foi \textbf{\expFwNumpy},
+acima da versão em Python puro ($\expFw$). A matriz de distâncias ocupa $8V^2$ bytes, de
+0,5~MB com 250 vértices a 8~MB com 1.000, e cada passo $k$ cria uma matriz temporária do
+mesmo tamanho. Quando elas deixam de caber na memória cache do processador, cada operação
+fica mais cara, embora o número de operações continue exatamente $V^3$. Na versão em
+Python puro, o custo do interpretador por operação domina e mascara esse efeito.
 
-BFS (1,49), Eulerianidade (1,31), Dijkstra (1,31) e DFS (1,27) cresceram mais rápido que
-o previsto, com ICs estreitos e $R^2 \ge 0{,}99$, ou seja, não é ruído de medição. O
-número de operações é linear: os testes confirmam que cada vértice entra uma única vez
-na fila ou na pilha. O que cresce é o custo de cada operação. Como o Tarjan percorre as
-mesmas listas de adjacência e ficou em 0,98, o tamanho do grafo sozinho não explica o
-desvio. Atribuímos o restante a efeitos de memória e do interpretador Python, como a
-alocação de listas de tamanho $V$, que variam entre implementações. O caso do
-Floyd-Warshall vetorizado mostra que esse tipo de efeito existe e é mensurável, mas, para
-BFS e DFS, isso continua sendo uma hipótese, não algo que tenhamos isolado. A faixa testada, de pouco mais de uma
-ordem de grandeza, também limita a precisão do expoente.
+BFS ($\expBfs$), Eulerianidade ($\expEuler$), Dijkstra ($\expDijkstra$) e DFS ($\expDfs$)
+cresceram mais rápido que o previsto, com ICs estreitos e $R^2 \ge 0{,}99$. O número de
+operações é linear: os testes confirmam que cada vértice entra uma única vez na fila ou na
+pilha. O que cresce é o custo de cada operação. Atribuímos o desvio a efeitos de memória e
+do interpretador Python, como a alocação de listas de tamanho $V$, cujo custo relativo
+aumenta quando os dados deixam de caber na cache. O Floyd-Warshall vetorizado mostra que
+esse efeito existe e é mensurável, mas, para os algoritmos lineares, ele continua sendo uma
+hipótese, não algo que tenhamos isolado. Há ainda um limite de precisão: repetindo o
+experimento inteiro, os expoentes dos algoritmos lineares variaram cerca de $0{,}15$ entre
+execuções (o Tarjan, por exemplo, oscilou entre aproximadamente 1,0 e 1,1), e a faixa
+testada cobre pouco mais de uma ordem de grandeza. Por isso, interpretamos as inclinações
+como tendências, e não como expoentes precisos.
 
 \input{tabelas/tab_escala}
 
@@ -360,8 +386,8 @@ ordem de grandeza, também limita a precisão do expoente.
 \begin{figure*}[t]
   \centering
   \includegraphics[width=\textwidth]{escala_algoritmos}
-  \caption{Complexidade observada dos nove algoritmos: tempo médio (IC 95\%, 30 repetições por tamanho) contra a função teórica $f(n)$, em log-log. Inclinação 1 indica que $f(n)$ descreve o custo observado.}
-  \Description{Nove gráficos log-log, um por algoritmo, com pontos alinhados sobre retas ajustadas. As inclinações vão de 0,61 (Bellman-Ford) a 1,49 (BFS); Floyd-Warshall, Tarjan, Prim e Kruskal ficam próximos de 1.}
+  \caption{Complexidade observada dos nove algoritmos (mais a versão vetorizada do Floyd-Warshall): tempo médio (IC 95\%, 30 repetições por tamanho) contra a função teórica $f(n)$, em log-log. Inclinação 1 indica que $f(n)$ descreve o custo observado.}
+  \Description{Dez gráficos log-log, um por algoritmo, com pontos alinhados sobre retas ajustadas. As inclinações vão de cerca de 0,6 (Bellman-Ford) a cerca de 1,5 (BFS); Floyd-Warshall, Tarjan, Prim e Kruskal ficam próximos de 1.}
   \label{fig:escala}
 \end{figure*}
 
@@ -375,15 +401,29 @@ próprio, sem bibliotecas prontas, em 5 realizações. Como o $G(n,m)$ com
 $\langle k\rangle\approx3$ não é conexo, $L_{rand}$ foi medido na sua maior componente
 (94,2\% dos vértices). Os valores analíticos
 $C_{rand}\approx\langle k\rangle/n$ e $L_{rand}\approx\ln n/\ln\langle k\rangle$ servem
-de conferência. O coeficiente é $\sigma = (C/C_{rand})/(L/L_{rand})$, e $\sigma > 1$
+de conferência. O coeficiente é $\sigma = (C/C_{nulo})/(L/L_{nulo})$, e $\sigma > 1$
 indica \emph{small-world}.
+
+O ER, porém, é um modelo nulo fraco para uma rede com hubs: seus graus são quase
+homogêneos. Por isso usamos um \textbf{segundo modelo nulo}, a reconexão que preserva a
+sequência de graus~\cite{maslov2002}, também implementada por nós. Repetem-se $10m$
+trocas duplas de arestas $(a,b),(c,d) \to (a,d),(c,b)$, recusando as que criariam laços ou
+arestas repetidas. Cada vértice mantém exatamente o seu grau, e os hubs continuam lá,
+mas quem se liga a quem é aleatorizado. Foram 3 realizações. O $L$ do grafo real usado
+aqui é o exato.
 
 \input{tabelas/tab_smallworld}
 
-\textbf{O grafo é small-world? Sim, de forma inequívoca} (Tabela~\ref{tab:smallworld}). A
-clusterização é cerca de 10 mil vezes maior que a do grafo aleatório equivalente, e o
-comprimento médio dos caminhos é até \emph{menor} que o aleatório (4,1 contra 11,1),
-pois os hubs funcionam como atalhos que o $G(n,m)$, de grau quase homogêneo, não tem.
+\textbf{O grafo é small-world? Sim, e o segundo modelo nulo mostra em que medida}
+(Tabela~\ref{tab:smallworld}). Contra o ER, a clusterização é cerca de \CsobreCr{} vezes
+maior e o comprimento médio é até \emph{menor} ($\Lexato$ contra $\Lrand$), com
+$\sigma\approx\sigmaER$. Contra o modelo que preserva os graus, o contraste cai muito:
+$C_{nulo}=\Cconf$, e $C$ fica só \CsobreCconf{} vezes acima, com $L$ semelhante
+($\Lexato$ contra $\Lconf$) e $\sigma=\sigmaConf$. Isso significa que \emph{a maior parte}
+do agrupamento aparente vem da distribuição heterogênea de graus: hubs com milhares de
+vizinhos fecham triângulos por acaso. O agrupamento que sobra, ainda mais que o dobro do
+esperado mesmo com os graus fixos, é estrutural e mantém $\sigma>1$. A rede é
+\emph{small-world}, mas de forma bem mais modesta do que o ER sugeriria.
 \textbf{Faz sentido para este grafo:} e-mails institucionais formam grupos coesos
 (equipes, departamentos), o que explica o $C$ alto, e alguns endereços centrais (listas,
 secretarias, servidores) ligam os grupos, o que explica o $L$ baixo. \textbf{Implicação
@@ -446,7 +486,7 @@ maior componente (50 fontes); e D, a fração de vértices isolados entre os res
 \end{figure*}
 
 \textbf{(a) Robusta à remoção aleatória de 5\%? Sim.} A maior componente mantém
-$S_{rand}/S_0 = 0{,}907$ dos vértices (Tabela~\ref{tab:robustez} e
+$S_{rand}/S_0 = \Srand$ dos vértices (Tabela~\ref{tab:robustez} e
 Figura~\ref{fig:robustez}): perde pouco mais que os 5\% removidos. O comprimento médio
 quase não muda (4,02 para 4,12), e só 4,4\% dos vértices ficam isolados. O desvio
 alto de B (cerca de 3.500) ocorre porque, quando o sorteio atinge um hub por acaso, suas
@@ -454,12 +494,12 @@ folhas se desprendem.
 
 \textbf{(b) Robusta à remoção dos 5\% mais centrais? Não, por nenhuma das três
 centralidades.} No ataque por grau, $S_{target}/S_0 = 2{,}7\times10^{-5}$: a maior
-componente restante tem \textbf{6 vértices}, há 213.168 componentes e 99,7\% dos
+componente restante tem \textbf{\maiorCompGrau{} vértices}, há 213.168 componentes e 99,7\% dos
 vértices restantes ficam isolados. Por PageRank, a maior componente fica com
-\textbf{3 vértices}; por betweenness, com \textbf{11}. Nos três casos, mais de 99,6\%
+\textbf{\maiorCompPr{} vértices}; por betweenness, com \textbf{\maiorCompBtw}. Nos três casos, mais de 99,6\%
 dos vértices restantes ficam isolados. O resultado é robusto à escolha da centralidade.
-Grau e PageRank escolhem 93\% dos mesmos alvos, porque, nesta rede, influência global e
-número de contatos andam juntos. A betweenness concorda com eles em apenas 69\% e 73\%
+Grau e PageRank escolhem \sobrepGrauPr\% dos mesmos alvos, porque, nesta rede, influência global e
+número de contatos andam juntos. A betweenness concorda com eles em apenas \sobrepGrauBtw\% e \sobrepPrBtw\%
 dos alvos, isto é, remove um conjunto bem diferente de vértices, e mesmo assim produz o
 mesmo colapso. Os valores de C entre 1,3 e 2,3 não indicam melhora: são distâncias
 médias dentro de ``componentes'' de 3 a 11 vértices. Como $S_{target} \ll S_{rand}$, a
@@ -471,7 +511,7 @@ A descoberta mais interessante foi \textbf{quão pouco da rede é ``de verdade''
 A conectividade de 224 mil endereços depende quase só dos hubs, e a
 Tabela~\ref{tab:hubs} mostra o perfil deles. Os 10 maiores hubs recebem e-mails de
 milhares de endereços distintos, mas escrevem para poucos. O maior recebeu mensagens de
-7.631 endereços, enviou para apenas 5, e 99,96\% dos seus vizinhos são folhas: é uma
+\hubRemetentes{} endereços, enviou para apenas \hubDestinatarios, e \hubFolhas\% dos seus vizinhos são folhas: é uma
 estrela quase perfeita, coerente com uma caixa de entrada que recebe mensagens em massa
 (listas, spam) e raramente responde. Os 9 primeiros têm entre 82\% e 99,96\% de
 vizinhos-folha, e os 10 juntos sustentam 37.749 das 188.296 folhas da LCC (20\%). Além
@@ -531,17 +571,28 @@ características mais marcantes da rede (26\% de reciprocidade). Por isso mantiv
 grafo dirigido para o Tarjan. Trabalhar na LCC descarta 15,2\% dos vértices, em sua
 maioria pares ou trincas isolados, que pouco influenciam as conclusões.
 
-\textbf{Exatidão contra aproximação.} Diâmetro e raio foram obtidos de forma exata com
-apenas 4 BFS, o que mostra que a escolha de algoritmo pode tornar viável um cálculo
-que parecia exigir $10^{11}$ operações. O comprimento médio permaneceu amostral, mas
-com IC estreito e estável entre 100 e 500 fontes.
+\textbf{Exatidão contra aproximação.} As três medidas de distância, que pareciam exigir
+$10^{11}$ operações, foram obtidas de forma exata explorando a estrutura do grafo. O
+diâmetro e o raio saíram com \nBfsDiam{} BFS (\emph{BoundingDiameters}). O comprimento
+médio exigiu BFS só a partir dos vértices que não são folhas, cerca de 1/6 do total. A
+escolha do algoritmo e o conhecimento da estrutura valeram mais que força bruta. A
+estimativa por amostragem conteve o valor exato no seu IC, o que dá confiança ao uso de
+amostragem onde o cálculo exato não foi feito (modelos nulos e robustez).
 
-\textbf{Pesos sintéticos.} Dijkstra, Bellman-Ford, Floyd-Warshall e as árvores
-geradoras usam pesos aleatórios que não têm significado no domínio. Os resultados
-servem para validar e medir os algoritmos, não para interpretar a rede. Pesos reais,
-como o número de mensagens por par, não estão disponíveis no dataset.
+\textbf{Pesos.} O dataset não traz o número de mensagens por par, que seria o peso
+natural. Os pesos usados (1 para laço recíproco, 2 para mão única) são derivados de um
+dado real, a direção da comunicação, e têm interpretação no domínio: caminhos mínimos e
+árvore geradora preferem relações de troca efetiva. Ainda assim, são uma escala ordinal
+de apenas dois níveis. Com muitos empates, várias árvores geradoras mínimas são
+possíveis, e Prim e Kruskal podem escolher árvores diferentes de mesmo peso.
 
-\textbf{Tempos em Python.} A diferença de 34 vezes entre as duas versões do
+\textbf{Modelo nulo.} A comparação com o ER sozinha teria superestimado o
+\emph{small-world} em quatro ordens de grandeza ($\sigma\approx\sigmaER$). O modelo que
+preserva os graus mostra que a maior parte do agrupamento se explica pelos hubs
+($\sigma=\sigmaConf$). Para redes de cauda pesada, um modelo nulo que respeite a
+distribuição de graus é indispensável.
+
+\textbf{Tempos em Python.} A diferença de \razaoFw{} vezes entre as duas versões do
 Floyd-Warshall, com a mesma complexidade, mostra que o tempo real depende fortemente
 de constantes de implementação. O estudo de escala reforça a lição em dois sentidos: o
 Bellman-Ford, com parada antecipada, ficou muito abaixo do seu pior caso $O(V\cdot E)$,
@@ -576,26 +627,30 @@ Analisamos o grafo \texttt{email-EuAll} (G34), com 265.214 vértices e 420.045 a
 reduzido pelo tratamento a uma LCC não dirigida de 224.832 vértices e 339.925 arestas.
 As principais conclusões são:
 \begin{itemize}
-  \item a rede é extremamente esparsa e heterogênea: 84\% dos vértices têm grau 1, e há
-  hubs de grau 7.636; o diâmetro é 14, o raio é 7 e o comprimento médio é cerca de 4,1;
-  \item ela é fortemente \emph{small-world} ($C/C_{rand}\approx10^4$,
-  $L<L_{rand}$, $\sigma\approx2{,}7\times10^4$);
+  \item a rede é extremamente esparsa e heterogênea: \pctFolhas\% dos vértices têm grau 1,
+  e há hubs de grau \grauMax; as distâncias são todas exatas: diâmetro \diametro, raio
+  \raio{} e comprimento médio $\Lexato$;
+  \item ela é \emph{small-world}: contra o ER, $C$ é cerca de \CsobreCr{} vezes maior
+  ($\sigma\approx\sigmaER$). Contra o modelo que preserva os graus, o agrupamento
+  excedente cai para \CsobreCconf{} vezes ($\sigma=\sigmaConf$). A maior parte do
+  agrupamento aparente vem dos hubs, mas o que sobra é estrutural;
   \item a distribuição de graus tem cauda pesada e se aproxima de uma lei de potência
   ($\gamma\approx1{,}9$ a $2{,}0$ nos ajustes lineares), mas com dois regimes e corte, o
   que impede uma lei de potência pura;
-  \item é robusta a falhas aleatórias (90,7\% na maior componente), mas colapsa com a
-  remoção dos 5\% mais centrais: a maior componente fica com 6, 3 e 11 vértices nos
+  \item é robusta a falhas aleatórias (\pctSrand\% na maior componente), mas colapsa com a
+  remoção dos 5\% mais centrais: a maior componente fica com \maiorCompGrau, \maiorCompPr{} e \maiorCompBtw{} vértices nos
   ataques por grau, PageRank e betweenness, com mais de 99,6\% dos vértices isolados;
   \item nenhum modelo clássico simulado reproduz a rede: o BA gera hubs, mas não o
   agrupamento nem as folhas; o WS gera agrupamento, mas não hubs; e o ER não gera nenhum
   dos dois. Os 10 maiores hubs recebem de milhares de endereços e escrevem para poucos;
-  o maior é uma estrela com 7.631 remetentes e apenas 5 destinatários;
+  o maior é uma estrela com \hubRemetentes{} remetentes e apenas \hubDestinatarios{} destinatários;
   \item todos os algoritmos da disciplina foram implementados e validados; os de custo
   linear ou quase linear escalam para o grafo inteiro, enquanto Bellman-Ford e
   Floyd-Warshall exigiram subgrafos. No estudo de escala dos nove algoritmos,
-  Floyd-Warshall, Tarjan, Prim e Kruskal confirmaram a complexidade teórica (inclinação
-  $\approx1$ contra $f(n)$); o Bellman-Ford ficou bem abaixo do seu pior caso, e o
-  Floyd-Warshall vetorizado expôs o custo da memória cache (inclinação 1,21).
+  Floyd-Warshall, Tarjan, Prim e Kruskal ficaram próximos da complexidade teórica
+  (inclinação entre $1$ e $1{,}15$ contra $f(n)$); o Bellman-Ford ficou bem abaixo do seu
+  pior caso, e o Floyd-Warshall vetorizado expôs o custo da memória cache (inclinação
+  $\expFwNumpy$).
 \end{itemize}
 
 %% ===================================================================
