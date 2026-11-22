@@ -24,6 +24,35 @@ dos dígitos da matrícula e `U` são os seus dois últimos dígitos.
 instituição de pesquisa europeia, de out/2003 a mar/2005. É um grafo **dirigido** com
 265.214 vértices e 420.045 arestas, em que u → v significa que u enviou ao menos um e-mail a v.
 
+## Requisitos do enunciado → onde estão
+
+Cada exigência do enunciado, o código que a cumpre, onde está o resultado e a seção do
+[relatório](relatorio/224216275.pdf) que a discute. Todos os arquivos de resultado estão em
+`results/tables/` (CSV) e `results/figures/` (PNG/PDF).
+
+| Requisito | Código | Resultado | Relatório |
+|---|---|---|---|
+| Cálculo do grafo pela matrícula | — | tabela acima | §2 |
+| Tratamento dos dados (e informá-lo) | `src/treatment.py`, `src/prepare_data.py` | `tratamento_evolucao.csv`, `data/processed/` | §5 |
+| **Parte I** – vértices, arestas, graus, densidade | `src/metrics.py` | `parte1_basicas.csv` | §7.1 |
+| Parte I – nº de componentes e **tamanho de cada uma** | `src/metrics.py` | `componentes_tamanhos.csv`, `componentes_frequencia.csv`, `componentes_tamanhos.png` | §7.1 |
+| Parte I – distribuição de graus | `src/visualize.py` | `distribuicao_graus.csv`, `distribuicao_graus.png` | §7.1 |
+| Parte I – diâmetro e raio (exatos) | `src/distances.py` (*BoundingDiameters*) | `parte1_diametro_raio.csv` | §6, §7.1 |
+| Parte I – comprimento médio dos caminhos (exato) | `src/distances.py` (redução das folhas) | `parte1_caminho_exato.csv` | §6, §7.1 |
+| Parte I – clusterização média e triângulos | `src/clustering.py` | `parte1_clusterizacao.csv` | §7.1 |
+| Parte I – visualização | `src/visualize.py` | `visualizacao_amostra.png` | §7.1 |
+| Parte I – tabela "computado ou não" | `src/part1_summary.py` | `parte1_resumo.csv` | §7.1 (Tab. de status) |
+| **Parte II** – BFS, DFS, Eulerianidade, Dijkstra, Bellman-Ford, Floyd-Warshall, Tarjan, Prim/Kruskal | `src/algorithms/` (testes em `tests/`) | `parte2_resultados.csv` | §7.2 |
+| Parte II – complexidade teórica e observada; média, desvio e IC (Z ou t-Student) | `src/benchmark.py` | `parte2_tempos.csv`, `parte2_escala.csv`, `parte2_expoentes.csv`, `tempos_algoritmos.png`, `escala_algoritmos.png` | §6, §7.2 |
+| **Parte III.1** – small-world, sem bibliotecas prontas | `src/smallworld.py` | `parte3_smallworld*.csv` (ER e graus preservados) | §7.3.1 |
+| Parte III.2 – lei de potência (histograma, CCDF log-log) | `src/powerlaw.py` | `parte3_powerlaw*.csv`, `lei_de_potencia.png` | §7.3.2 |
+| Parte III.3 – robustez: remoção aleatória de 5% e dos 5% mais centrais (métricas A–D, boxplot) | `src/centrality.py`, `src/robustness.py` | `parte3_robustez*.csv`, `robustez.png` | §7.3.3 |
+| Parte III.4 – descoberta mais interessante | `src/hubs.py` | `parte3_hubs*.csv` | §7.3.4 |
+| Parte III.5 (extra) – modelos ER, BA e WS | `src/models.py` | `parte3_modelos.csv`, `modelos_ccdf.png` | §7.3.5 |
+| Repositório: códigos, dados tratados, README | `src/`, `scripts/` | `data/processed/`, este README | §3 |
+| Relatório no template WebMedia, PDF com a matrícula | `relatorio/` (`main.tex`, `webmedia.cls`) | [`relatorio/224216275.pdf`](relatorio/224216275.pdf) | — |
+| Tabelas e números do relatório sem digitação manual | `src/report_tables.py` | `results/latex/tab_*.tex`, `results/latex/numeros.tex` | todo o texto |
+
 ## Execução rápida
 
 ```bash
