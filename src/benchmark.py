@@ -9,13 +9,15 @@ IC 95% da média:
 
 Também é feito um experimento de escala (tempo × tamanho da entrada) em
 subgrafos induzidos por BFS de tamanhos crescentes, com ajuste linear em escala
-log-log: a inclinação estima o expoente observado da complexidade. Cada tamanho é
-medido 30 vezes, com IC 95% por ponto. Ajustamos também o tempo contra a função
-teórica f(n) (V+E, (V+E) log V, V³): se f descreve bem o custo, o expoente é ≈ 1.
+log-log, para TODOS os algoritmos: o tempo médio é ajustado contra a própria
+função teórica f(n) (V+E, (V+E) log V, E log V, V·E, V³); se f descreve bem o
+custo, a inclinação é ≈ 1. Cada tamanho é medido 30 vezes, com IC 95% por ponto.
+Os lineares e quase lineares usam subgrafos de 14 mil vértices até a LCC inteira;
+Bellman-Ford, de 1 mil a 16 mil; Floyd-Warshall, de 50 a 300.
 
 Uso:
-    python -m src.benchmark                 # completo (~9 min)
-    python -m src.benchmark --scaling-only  # só o experimento de escala (~4 min)
+    python -m src.benchmark                 # completo (~17 min)
+    python -m src.benchmark --scaling-only  # só o experimento de escala (~12 min)
     python -m src.benchmark --plots-only    # só redesenha as figuras a partir dos CSVs
     python -m src.benchmark --quick         # execução reduzida (teste rápido)
 """
@@ -138,11 +140,35 @@ def run_benchmark(runs: int, fw_runs: int) -> tuple[pd.DataFrame, pd.DataFrame]:
     return pd.DataFrame(timing_rows), pd.DataFrame(result_rows)
 
 
+LINEAR_SIZES = (14_000, 28_000, 56_000, 112_000)  # + a LCC inteira
+BF_SIZES = (1_000, 2_000, 4_000, 8_000, 16_000)
+FW_SIZES = (50, 100, 150, 200, 250, 300)
+
+# nome -> (f(n) como texto, função teórica de (V, E))
+THEORY = {
+    "BFS": ("V+E", lambda v, e: v + e),
+    "DFS": ("V+E", lambda v, e: v + e),
+    "Eulerianidade": ("V+E", lambda v, e: v + e),
+    "Tarjan (pontes/articulações)": ("V+E", lambda v, e: v + e),
+    "Dijkstra": ("(V+E) log V", lambda v, e: (v + e) * math.log2(v)),
+    "Prim": ("E log V", lambda v, e: e * math.log2(v)),
+    "Kruskal": ("E log V", lambda v, e: e * math.log2(v)),
+    "Bellman-Ford": ("V·E", lambda v, e: float(v) * e),
+    "Floyd-Warshall": ("V³", lambda v, e: float(v) ** 3),
+}
+
+
+def theoretical_cost(name: str, v: int, e: int) -> float:
+    """Função de custo teórica f(n) do algoritmo, no pior caso."""
+    return THEORY[name][1](v, e)
+
+
 def scaling_experiment(reps: int) -> pd.DataFrame:
-    """Tempo × tamanho em subgrafos BFS da LCC; inclinação log-log = expoente observado."""
+    """Tempo × tamanho para os 9 algoritmos em subgrafos induzidos por prefixos da
+    ordem de BFS da LCC (todo prefixo é conexo). Cada tamanho é medido `reps` vezes."""
     n, edges, weights = load_lcc()
     adj = build_adjacency(n, edges)
-    order = bfs_sample(adj, n)  # ordem de BFS da LCC inteira (prefixos são conexos)
+    order = bfs_sample(adj, n)
     weight_of = dict(zip(edges, weights))
 
     def sub(k):
@@ -150,32 +176,35 @@ def scaling_experiment(reps: int) -> pd.DataFrame:
         sw = [weight_of[(mapping[u], mapping[v])] for u, v in sedges]
         return k, sedges, sw
 
-    def row(name, kk, m, size, times):
-        return {"algoritmo": name, "V": kk, "E": m, "tamanho": size,
-                "f_teorica": theoretical_cost(name, kk, m), **confidence_interval(times)}
-
     rows = []
-    for k in (14_000, 28_000, 56_000, 112_000, n):
-        kk, sedges, sw = sub(k)
-        a = build_adjacency(kk, sedges)
-        wa = build_weighted_adjacency(kk, sedges, sw)
-        for name, fn in (("BFS", lambda: bfs(a, 0)), ("Dijkstra", lambda: dijkstra(wa, 0))):
-            _, times = measure(fn, reps)
-            rows.append(row(name, kk, len(sedges), kk + len(sedges), times))
-            print(f"  escala {name:15s} V={kk:>7} média {statistics.fmean(times):.4f}s")
-    for k in (50, 100, 150, 200, 250, 300):
-        kk, sedges, sw = sub(k)
-        _, times = measure(lambda: floyd_warshall(kk, sedges, sw), reps)
-        rows.append(row("Floyd-Warshall", kk, len(sedges), kk, times))
-        print(f"  escala Floyd-Warshall  V={kk:>7} média {statistics.fmean(times):.4f}s")
+
+    def record(name, kk, m, fn, extra=None):
+        result, times = measure(fn, reps)
+        rows.append({"algoritmo": name, "V": kk, "E": m,
+                     "f_teorica": theoretical_cost(name, kk, m),
+                     **(extra(result) if extra else {}), **confidence_interval(times)})
+        print(f"  escala {name:30s} V={kk:>7} E={m:>7} média {statistics.fmean(times):.4f}s")
+
+    for k in (*LINEAR_SIZES, n):
+        kk, se, sw = sub(k)
+        a = build_adjacency(kk, se)
+        wa = build_weighted_adjacency(kk, se, sw)
+        m = len(se)
+        record("BFS", kk, m, lambda: bfs(a, 0))
+        record("DFS", kk, m, lambda: dfs(a, 0))
+        record("Eulerianidade", kk, m, lambda: check_undirected(a))
+        record("Tarjan (pontes/articulações)", kk, m, lambda: bridges_and_articulation_points(a))
+        record("Dijkstra", kk, m, lambda: dijkstra(wa, 0))
+        record("Prim", kk, m, lambda: prim(wa))
+        record("Kruskal", kk, m, lambda: kruskal(kk, se, sw))
+    for k in BF_SIZES:
+        kk, se, sw = sub(k)
+        record("Bellman-Ford", kk, len(se), lambda: bellman_ford(kk, se, sw, 0),
+               extra=lambda r: {"rodadas": r[2]})
+    for k in FW_SIZES:
+        kk, se, sw = sub(k)
+        record("Floyd-Warshall", kk, len(se), lambda: floyd_warshall(kk, se, sw))
     return pd.DataFrame(rows)
-
-
-def theoretical_cost(name: str, v: int, e: int) -> float:
-    """Função de custo teórica f(n) de cada algoritmo do experimento de escala."""
-    return {"BFS": v + e,
-            "Dijkstra": (v + e) * math.log2(v),
-            "Floyd-Warshall": float(v) ** 3}[name]
 
 
 def loglog_fit(x, y) -> tuple[float, float, float]:
@@ -188,40 +217,41 @@ def loglog_fit(x, y) -> tuple[float, float, float]:
 
 
 def plot_scaling(df: pd.DataFrame) -> pd.DataFrame:
-    """Tempo × tamanho com IC 95% por ponto e dois ajustes em log-log:
-    (i) contra o tamanho da entrada (expoente teórico 1 ou 3);
-    (ii) contra a função teórica f(n) (expoente ideal 1, se f descreve bem o custo)."""
-    fig, axes = plt.subplots(1, 3, figsize=(14, 4.2))
+    """Um painel por algoritmo: tempo médio (IC 95%) contra a função teórica f(n), em
+    log-log. Se f descreve o custo, a inclinação é ≈ 1."""
+    names = [a for a in THEORY if a in set(df["algoritmo"])]
+    cols = 3
+    rows_n = math.ceil(len(names) / cols)
+    fig, axes = plt.subplots(rows_n, cols, figsize=(14, 3.6 * rows_n), squeeze=False)
     fits = []
-    specs = [("BFS", "V + E", 1, "V+E"), ("Dijkstra", "V + E", 1, "(V+E) log V"),
-             ("Floyd-Warshall", "V", 3, "V³")]
-    for ax, (name, xlabel, theory, fname) in zip(axes, specs):
-        d = df[df["algoritmo"] == name]
-        slope, intercept, r2 = loglog_fit(d["tamanho"], d["media_s"])
-        row = {"algoritmo": name, "expoente_observado": slope, "R2": r2,
-               "expoente_teorico": theory}
-        if "f_teorica" in d:
-            s_f, _, r2_f = loglog_fit(d["f_teorica"], d["media_s"])
-            row.update({"funcao_teorica": fname, "expoente_vs_f": s_f, "R2_vs_f": r2_f})
-        fits.append(row)
-        if "ic95_inf_s" in d:
-            err = [d["media_s"] - d["ic95_inf_s"], d["ic95_sup_s"] - d["media_s"]]
-            ax.errorbar(d["tamanho"], d["media_s"], yerr=err, fmt="o", capsize=3,
-                        label=f"medido (média e IC 95%, n={int(d['n'].iloc[0])})")
-        else:
-            ax.plot(d["tamanho"], d["media_s"], "o", label="medido")
-        ax.set_xscale("log")
-        ax.set_yscale("log")
-        lx = np.log10(d["tamanho"])
+    for ax, name in zip(axes.flat, names):
+        d = df[df["algoritmo"] == name].sort_values("f_teorica")
+        fname = THEORY[name][0]
+        slope, intercept, r2 = loglog_fit(d["f_teorica"], d["media_s"])
+        fit = {"algoritmo": name, "funcao_teorica": fname, "expoente_vs_f": slope,
+               "R2_vs_f": r2, "V_min": int(d["V"].min()), "V_max": int(d["V"].max()),
+               "pontos": len(d)}
+        if "rodadas" in d and d["rodadas"].notna().any():
+            fit["rodadas_min"] = int(d["rodadas"].min())
+            fit["rodadas_max"] = int(d["rodadas"].max())
+        fits.append(fit)
+        err = [d["media_s"] - d["ic95_inf_s"], d["ic95_sup_s"] - d["media_s"]]
+        ax.errorbar(d["f_teorica"], d["media_s"], yerr=err, fmt="o", capsize=3,
+                    label=f"média e IC 95% (n={int(d['n'].iloc[0])})")
+        lx = np.log10(d["f_teorica"])
         xs = np.linspace(lx.min(), lx.max(), 50)
         ax.plot(10 ** xs, 10 ** (intercept + slope * xs), "--",
-                label=f"ajuste: inclinação {slope:.2f} (R² = {r2:.3f})")
-        ax.set_title(f"{name} (teórico: expoente ≈ {theory}"
-                     f"{' + fator log' if name == 'Dijkstra' else ''})")
-        ax.set_xlabel(f"Tamanho da entrada ({xlabel})")
+                label=f"inclinação {slope:.2f} (R² = {r2:.3f})")
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.set_title(f"{name}: f(n) = {fname}", fontsize=10)
+        ax.set_xlabel("f(n)")
         ax.set_ylabel("Tempo médio (s)")
         ax.grid(True, which="both", alpha=0.3)
-        ax.legend(fontsize=8)
+        ax.legend(fontsize=7)
+    for ax in list(axes.flat)[len(names):]:
+        ax.axis("off")
+    fig.suptitle("Complexidade observada: tempo × função teórica f(n) (ideal: inclinação 1)")
     fig.tight_layout()
     save_figure(fig, "escala_algoritmos")
     plt.close(fig)

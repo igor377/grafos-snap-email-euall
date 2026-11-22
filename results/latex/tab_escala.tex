@@ -1,15 +1,21 @@
 % Gerado por src/report_tables.py a partir de results/tables/ -- não editar
 \begin{table}[t]
-  \caption{Complexidade observada: inclinação em log-log do tempo médio contra o tamanho da entrada e contra a função teórica $f(n)$ (ideal: 1).}
+  \caption{Complexidade observada: inclinação em log-log do tempo médio contra a função teórica $f(n)$ (ideal: 1), com 30 repetições por tamanho.}
   \label{tab:escala}
 \resizebox{\columnwidth}{!}{%
-\begin{tabular}{lrrrlrr}
+\begin{tabular}{llrrrl}
   \toprule
-  Algoritmo & Teórico & Observado & $R^2$ & $f(n)$ & Exp. vs.\ $f$ & $R^2$ \\
+  Algoritmo & $f(n)$ & Inclinação & $R^2$ & Vértices & Observação \\
   \midrule
-  BFS & 1 & 1,50 & 0,995 & $V+E$ & 1,50 & 0,995 \\
-  Dijkstra & 1 & 1,53 & 0,993 & $(V+E)\log V$ & 1,36 & 0,994 \\
-  Floyd-Warshall & 3 & 2,98 & 1,000 & $V^3$ & 0,99 & 1,000 \\
+  BFS & $V+E$ & 1,49 & 0,999 & 14.000--224.832 &  \\
+  DFS & $V+E$ & 1,27 & 0,990 & 14.000--224.832 &  \\
+  Eulerianidade & $V+E$ & 1,31 & 0,998 & 14.000--224.832 &  \\
+  Tarjan (pontes/articulações) & $V+E$ & 0,98 & 0,987 & 14.000--224.832 &  \\
+  Dijkstra & $(V+E)\log V$ & 1,31 & 0,999 & 14.000--224.832 &  \\
+  Prim & $E\log V$ & 1,06 & 0,995 & 14.000--224.832 &  \\
+  Kruskal & $E\log V$ & 1,05 & 0,998 & 14.000--224.832 &  \\
+  Bellman-Ford & $V\cdot E$ & 0,61 & 0,979 & 1.000--16.000 & 4 a 5 rodadas (parada antecipada) \\
+  Floyd-Warshall & $V^3$ & 1,00 & 1,000 & 50--300 &  \\
   \bottomrule
 \end{tabular}}
 \end{table}

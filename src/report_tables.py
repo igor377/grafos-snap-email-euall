@@ -188,22 +188,20 @@ def tab_algoritmos():
 
 def tab_escala():
     e = csv("parte2_expoentes")
+    reps = int(csv("parte2_escala")["n"].iloc[0])
+    fn = {"V+E": "$V+E$", "(V+E) log V": r"$(V+E)\log V$", "E log V": r"$E\log V$",
+          "V·E": r"$V\cdot E$", "V³": "$V^3$"}
     rows = []
     for r in e.itertuples():
-        row = [r.algoritmo, inteiro(r.expoente_teorico), dec(r.expoente_observado, 2),
-               dec(r.R2, 3)]
-        if "expoente_vs_f" in e:
-            fn = {"V+E": "$V+E$", "(V+E) log V": r"$(V+E)\log V$", "V³": "$V^3$"}
-            row += [fn.get(r.funcao_teorica, tex_text(r.funcao_teorica)),
-                    dec(r.expoente_vs_f, 2), dec(r.R2_vs_f, 3)]
-        rows.append(row)
-    header = ["Algoritmo", "Teórico", "Observado", "$R^2$"]
-    spec = "lrrr"
-    if "expoente_vs_f" in e:
-        header += ["$f(n)$", r"Exp. vs.\ $f$", "$R^2$"]
-        spec += "lrr"
-    table("escala", "Complexidade observada: inclinação em log-log do tempo médio contra o "
-          "tamanho da entrada e contra a função teórica $f(n)$ (ideal: 1).", spec, header,
+        obs = ""
+        if "rodadas_min" in e and pd.notna(r.rodadas_min):
+            obs = f"{int(r.rodadas_min)} a {int(r.rodadas_max)} rodadas (parada antecipada)"
+        rows.append([tex_text(r.algoritmo), fn.get(r.funcao_teorica, tex_text(r.funcao_teorica)),
+                     dec(r.expoente_vs_f, 2), dec(r.R2_vs_f, 3),
+                     f"{inteiro(r.V_min)}--{inteiro(r.V_max)}", obs])
+    table("escala", "Complexidade observada: inclinação em log-log do tempo médio contra a "
+          f"função teórica $f(n)$ (ideal: 1), com {reps} repetições por tamanho.",
+          "llrrrl", ["Algoritmo", "$f(n)$", "Inclinação", "$R^2$", r"Vértices", "Observação"],
           rows, resize=True)
 
 
