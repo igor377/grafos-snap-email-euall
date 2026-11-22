@@ -31,7 +31,7 @@ python -m venv .venv
 .venv\Scripts\activate              # Linux/macOS: source .venv/bin/activate
 pip install -r requirements.txt
 
-python scripts/run_all.py           # pipeline completo (~30 min)
+python scripts/run_all.py           # pipeline completo (~40 min)
 python -m pytest                    # testes (~10 s)
 jupyter notebook notebooks/analise.ipynb
 ```
@@ -89,7 +89,7 @@ todos eles nesta ordem.
 | 6 | `python -m src.clustering` | Triângulos, clusterização, transitividade | `parte1_clusterizacao.csv` | 10 s |
 | 7 | `python -m src.visualize` | Distribuição de graus e visualização de amostra | `distribuicao_graus.*`, `visualizacao_amostra.png` | 15 s |
 | 8 | `python -m src.part1_summary` | Tabela-resumo da Parte I | `parte1_resumo.csv` | 1 s |
-| 9 | `python -m src.benchmark` | Tempo de todos os algoritmos (30 execuções) e escala (30 repetições por tamanho, IC 95%) | `parte2_*.csv`, `tempos_algoritmos.*`, `escala_algoritmos.*` | 9 min |
+| 9 | `python -m src.benchmark` | Tempo de todos os algoritmos (30 execuções) e escala dos 9 algoritmos (30 repetições por tamanho, IC 95%) | `parte2_*.csv`, `tempos_algoritmos.*`, `escala_algoritmos.*` | 17 min |
 | 10 | `python -m src.smallworld` | Small-world contra 5 grafos Erdős–Rényi | `parte3_smallworld*.csv` | 10 min |
 | 11 | `python -m src.powerlaw` | Lei de potência | `parte3_powerlaw*.csv`, `lei_de_potencia.png` | 5 s |
 | 12 | `python -m src.robustness` | Robustez: 30 remoções aleatórias + ataques por grau e por PageRank | `parte3_robustez*.csv`, `robustez.*` | 7 min |
@@ -167,15 +167,37 @@ Tempos com 30 execuções e IC 95% pela Normal (Z). O Floyd-Warshall em Python p
 Tempos variam de máquina para máquina. Os valores acima foram medidos no ambiente de
 desenvolvimento, e a saída de cada algoritmo está em `results/tables/parte2_resultados.csv`.
 
-**Complexidade observada** (subgrafos de tamanho crescente, 30 repetições por tamanho, IC 95%
-por ponto). Inclinação em log-log do tempo contra o tamanho e contra a função teórica f(n),
-cujo expoente ideal é 1:
+**Complexidade observada dos 9 algoritmos.** Cada algoritmo foi medido em subgrafos de
+tamanho crescente (prefixos da ordem de BFS da LCC, todos conexos), com 30 repetições e
+IC 95% por tamanho. O tempo médio é ajustado em log-log contra a função teórica f(n):
+**inclinação 1** significa que f(n) descreve bem o custo observado
+(`parte2_expoentes.csv`, `escala_algoritmos.png`).
 
-| Algoritmo | Expoente teórico | Observado (R²) | f(n) | Expoente vs. f(n) (R²) |
-|---|---:|---:|---|---:|
-| BFS | 1 | 1,50 (0,995) | V+E | 1,50 (0,995) |
-| Dijkstra | 1 | 1,53 (0,993) | (V+E) log V | 1,36 (0,994) |
-| Floyd-Warshall | 3 | 2,98 (1,000) | V³ | 0,99 (1,000) |
+| Algoritmo | f(n) | Inclinação (R²) | Vértices testados |
+|---|---|---:|---|
+| BFS | V+E | 1,49 (0,999) | 14 mil – 224.832 |
+| DFS | V+E | 1,27 (0,990) | 14 mil – 224.832 |
+| Eulerianidade | V+E | 1,31 (0,998) | 14 mil – 224.832 |
+| Tarjan (pontes/articulações) | V+E | 0,98 (0,987) | 14 mil – 224.832 |
+| Dijkstra | (V+E) log V | 1,31 (0,999) | 14 mil – 224.832 |
+| Prim | E log V | 1,06 (0,995) | 14 mil – 224.832 |
+| Kruskal | E log V | 1,05 (0,998) | 14 mil – 224.832 |
+| Bellman-Ford | V·E | 0,61 (0,979) | 1 mil – 16 mil |
+| Floyd-Warshall | V³ | 1,00 (1,000) | 50 – 300 |
+
+Como ler:
+- **Floyd-Warshall, Tarjan, Prim e Kruskal** confirmam a complexidade teórica (≈ 1).
+- **Bellman-Ford fica bem abaixo de 1** porque o V·E é o pior caso. Com a parada
+  antecipada, ele convergiu em só 4 ou 5 rodadas em todos os tamanhos, então o custo real
+  foi proporcional a k·E, com k pequeno.
+- **BFS, DFS, Eulerianidade e Dijkstra ficam acima de 1** (1,27 a 1,49), com R² ≥ 0,99, ou
+  seja, não é ruído. O número de operações é linear: os testes confirmam que cada vértice
+  entra uma vez na fila ou na pilha. O que cresce é o custo de cada operação em Python.
+  Como o Tarjan percorre as mesmas listas e ficou em 0,98, o tamanho do grafo sozinho não
+  explica o desvio. A hipótese, não isolada experimentalmente, é de efeitos do
+  interpretador, como a alocação de listas de tamanho V e o gerenciamento de memória. A
+  faixa testada, de pouco mais de uma ordem de grandeza, também limita a precisão do
+  expoente.
 
 ### Parte III: propriedades da rede
 
