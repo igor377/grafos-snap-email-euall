@@ -228,7 +228,10 @@ Como ler:
 
 ## Relatório
 
-O relatório (template WebMedia) está em `relatorio/`: `main.tex`, `referencias.bib`,
+📄 **PDF final: [`relatorio/224216275.pdf`](relatorio/224216275.pdf)**, compilado no template
+oficial do WebMedia (Overleaf).
+
+O código-fonte do relatório está em `relatorio/`: `main.tex`, `referencias.bib`,
 `webmedia.cls`, `tabelas/` e `figuras/`. `python -m src.report_tables` gera, a partir dos
 CSVs, **as tabelas** (`tab_*.tex`) e **as macros com os números citados no texto**
 (`numeros.tex`, por exemplo `\Lexato` e `\sigmaConf`), e copia as figuras PDF. Assim,
