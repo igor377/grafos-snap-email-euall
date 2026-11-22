@@ -16,7 +16,7 @@ import shutil
 
 import pandas as pd
 
-from src.load import FIGURES_DIR, ROOT, TABLES_DIR
+from src.load import FIGURES_DIR, ROOT, SUBGRAPH_FILE as SUBGRAPH, TABLES_DIR
 
 LATEX_DIR = ROOT / "results" / "latex"
 REPORT_DIR = ROOT / "relatorio"
@@ -303,6 +303,89 @@ def tab_modelos():
           rows, wide=True, resize=True)
 
 
+def numeros_extras(n_lcc) -> dict[str, str]:
+    """Demais números do texto que vêm dos dados (componentes, resultados dos algoritmos,
+    lei de potência, robustez e modelos clássicos)."""
+    tam = csv("componentes_tamanhos")["tamanho"].tolist()
+    freq = csv("componentes_frequencia").set_index("tamanho")["quantidade"]
+    cl = csv("parte1_clusterizacao").set_index("escopo")
+    b = csv("parte1_basicas").set_index("metrica")
+    res = csv("parte2_resultados").set_index("algoritmo")["resultado"]
+    er = csv("parte3_smallworld_er")
+    pl = csv("parte3_powerlaw")
+    sens = csv("parte3_powerlaw_sensibilidade")
+    tail = sens[sens["kmin"] >= 5]
+    rb = csv("parte3_robustez").set_index("metrica")
+    hr = csv("parte3_hubs_resumo").iloc[0]
+    md = csv("parte3_modelos").set_index("modelo")
+    ba = md.loc[[i for i in md.index if i.startswith("Barab")][0]]
+    ws = md.loc[[i for i in md.index if i.startswith("Watts")][0]]
+    erm = md.loc[[i for i in md.index if i.startswith("Erd")][0]]
+    real = md.loc["email-EuAll (LCC)"]
+
+    def grab(alg, pat):
+        return int(re.search(pat, res[alg]).group(1))
+
+    D = "D_fracao_isolados"
+    targets = [c for c in rb.columns if c.startswith("direcionada_")]
+    return {
+        "nTestes": inteiro(count_tests()),
+        "nVLccMenosUm": inteiro(n_lcc - 1), "nArcos": inteiro(2 * b.loc["arestas", "lcc"]),
+        "grauMedioLccTres": dec(b.loc["grau_medio", "lcc"], 3),
+        "pctDescartado": dec(100 - 100 * n_lcc / b.loc["vertices", "grafo_completo"], 1),
+        "nESub": inteiro(sum(1 for _ in open_lines(SUBGRAPH))),
+        "nIsolados": inteiro(freq.loc[1]), "compPares": inteiro(freq.loc[2]),
+        "compSegunda": inteiro(tam[1]), "compTerceira": inteiro(tam[2]),
+        "verticesTriangulos": inteiro(cl.loc["lcc", "vertices_em_triangulos"]),
+        "grauImpar": inteiro(grab("Eulerianidade (não dirigido)", r"(\d+) vértices de grau ímpar")),
+        "desbalanceados": inteiro(grab("Eulerianidade (dirigido)", r"(\d+) vértices com")),
+        "nScc": inteiro(grab("Tarjan (SCC)", r"(\d+) SCCs")),
+        "maiorScc": inteiro(grab("Tarjan (SCC)", r"maior com (\d+)")),
+        "pctMaiorScc": dec(100 * grab("Tarjan (SCC)", r"maior com (\d+)") / n_lcc
+                           * n_lcc / b.loc["vertices", "grafo_completo"], 1),
+        "pontes": inteiro(grab("Tarjan (pontes/articulações)", r"(\d+) pontes")),
+        "articulacoes": inteiro(grab("Tarjan (pontes/articulações)", r"(\d+) articula")),
+        "pctGiganteER": dec(100 * er["fracao_maior_componente"].mean(), 1),
+        "Rbins": dec(pl["R2"].iloc[0], 2),
+        "gammaSensMax": dec(sens["gamma_mle"].max(), 2),
+        "gammaSensMin": dec(sens["gamma_mle"].min(), 2),
+        "ksCaudaMin": dec(tail["ks"].min(), 2), "ksCaudaMax": dec(tail["ks"].max(), 2),
+        "rRemovidos": inteiro(int(0.05 * n_lcc)),
+        "Loriginal": dec(rb.loc["C_caminho_medio", "original"], 2),
+        "Laleatoria": dec(rb.loc["C_caminho_medio", "aleatoria_media"], 2),
+        "pctIsolAleat": dec(100 * rb.loc[D, "aleatoria_media"], 1),
+        "BdesvioAleat": inteiro(round(rb.loc["B_num_componentes", "aleatoria_desvio"], -2)),
+        "compAtaqueGrau": inteiro(rb.loc["B_num_componentes", "direcionada_grau"]),
+        "pctIsolGrau": dec(100 * rb.loc[D, "direcionada_grau"], 1),
+        "pctIsolMin": dec(math.floor(1000 * min(rb.loc[D, c] for c in targets)) / 10, 1),
+        "folhasTopDez": inteiro(hr["folhas_ligadas_aos_top10"]),
+        "folhasMinTopNove": dec(100 * csv("parte3_hubs")["frac_vizinhos_folha"].head(9).min(), 0),
+        "kmaxER": inteiro(erm["grau_max"]), "kmaxBA": inteiro(ba["grau_max"]),
+        "kmaxWS": inteiro(ws["grau_max"]),
+        "Cws": dec(ws["C"], 2), "Lws": dec(ws["L"], 1),
+        "gammaBA": dec(ba["gamma_mle"], 2), "ksBA": dec(ba["ks_mle"], 3),
+        "razaoCba": inteiro(round(real["C"] / ba["C"], -1)),
+        "razaoKmaxBA": inteiro(round(real["grau_max"] / ba["grau_max"])),
+    }
+
+
+def count_tests() -> int:
+    """Número de testes da suíte (pytest --collect-only), para citar no texto."""
+    import subprocess
+    import sys
+    out = subprocess.run([sys.executable, "-m", "pytest", "--collect-only", "-q"], cwd=ROOT,
+                         capture_output=True, text=True, encoding="utf-8").stdout
+    return sum(1 for line in out.splitlines() if "::" in line)
+
+
+def open_lines(path):
+    import gzip
+    with gzip.open(path, "rt", encoding="utf-8") as f:
+        for line in f:
+            if line.strip() and not line.startswith("#"):
+                yield line
+
+
 def numeros() -> dict[str, str]:
     """Macros LaTeX (\\newcommand) com os números citados no TEXTO do relatório, lidos
     dos CSVs. Gravadas em results/latex/numeros.tex; o main.tex faz \\input dele."""
@@ -411,6 +494,7 @@ def numeros() -> dict[str, str]:
         "hubFolhas": dec(100 * hb["frac_vizinhos_folha"], 2),
         "pctFolhasTopDez": dec(100 * hr["fracao_das_folhas_nos_top10"], 0),
     }
+    m.update(numeros_extras(n_lcc))
     # "{,}" em vez de "," para o decimal funcionar também dentro de fórmulas ($...$)
     m = {k: (v if "{,}" in v else v.replace(",", "{,}")) for k, v in m.items()}
     lines = ["% Gerado por src/report_tables.py a partir de results/tables/ -- não editar"]

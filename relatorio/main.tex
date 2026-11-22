@@ -40,10 +40,10 @@
 
 \begin{abstract}
 Este trabalho analisa o grafo \texttt{email-EuAll} do SNAP, uma rede de e-mails de uma
-instituição de pesquisa europeia com 265.214 vértices e 420.045 arestas dirigidas,
+instituição de pesquisa europeia com \nVBruto{} vértices e \nEBruto{} arestas dirigidas,
 atribuído pela regra de mapeamento da matrícula (G34). Após remover auto-loops,
 converter o grafo para não dirigido simples e extrair a maior componente conexa
-(224.832 vértices e 339.925 arestas), calculamos as propriedades estruturais clássicas
+(\nVLcc{} vértices e \nELcc{} arestas), calculamos as propriedades estruturais clássicas
 de forma exata: diâmetro (\diametro) e raio (\raio) pelo algoritmo
 \emph{BoundingDiameters}, e comprimento médio ($\Lexato$) por uma redução que deduz as
 distâncias das folhas. Implementamos e medimos o tempo de BFS, DFS, verificação de
@@ -108,7 +108,7 @@ O código-fonte, o conjunto de dados tratado, as tabelas e figuras geradas e o
 \url{https://github.com/igor377/grafos-snap-email-euall}. O pipeline completo é executado
 por \texttt{python scripts/run\_all.py}, e o notebook \texttt{notebooks/analise.ipynb}
 reúne todos os resultados. As implementações são conferidas contra o NetworkX por
-124 testes automatizados (\texttt{python -m pytest}).
+\nTestes{} testes automatizados (\texttt{python -m pytest}).
 
 %% ===================================================================
 \section{Descrição do Grafo Original}
@@ -121,8 +121,8 @@ $u$ enviou ao menos um e-mail para $v$. Segundo a documentação do SNAP, o graf
 comunicação é completo apenas para os 1.258 endereços da própria instituição. Apenas
 34.203 endereços enviaram \emph{e} receberam mensagens no período, e os demais são
 endereços externos, inexistentes, digitados incorretamente ou de spam. O arquivo é distribuído
-como lista de arestas (\texttt{.txt.gz}), com 265.214 vértices (identificadores
-$0,\dots,265.213$, sem lacunas) e 420.045 arestas dirigidas. O grafo é \textbf{não
+como lista de arestas (\texttt{.txt.gz}), com \nVBruto{} vértices (identificadores
+$0,\dots,265.213$, sem lacunas) e \nEBruto{} arestas dirigidas. O grafo é \textbf{não
 ponderado} e não traz o instante de cada mensagem: as arestas já vêm agregadas no
 período.
 
@@ -134,20 +134,20 @@ Os tratamentos foram aplicados na ordem abaixo, e a Tabela~\ref{tab:tratamento} 
 o efeito de cada etapa.
 
 \begin{enumerate}
-  \item \textbf{Remoção de auto-loops:} 1.089 arestas $u \rightarrow u$ foram removidas.
+  \item \textbf{Remoção de auto-loops:} \nLoops{} arestas $u \rightarrow u$ foram removidas.
   Elas não afetam caminhos e distorceriam graus e testes de Eulerianidade.
   \item \textbf{Dirigido $\rightarrow$ não dirigido simples:} as arestas $u\rightarrow v$
   e $v\rightarrow u$ viram uma única aresta $\{u,v\}$. As métricas da Parte~I, os
   caminhos mínimos, as árvores geradoras e a robustez são definidos sobre a relação
   ``houve comunicação'', que é simétrica.
   \item \textbf{Extração da maior componente conexa (LCC):} diâmetro, raio e comprimento
-  médio só são finitos em grafos conexos. A LCC preserva 84,8\% dos vértices e 93,3\% das
+  médio só são finitos em grafos conexos. A LCC preserva \pctVLcc\% dos vértices e \pctELcc\% das
   arestas, e é também a política adotada para grafo desconexo no Apêndice~C (robustez).
   \item \textbf{Grafo dirigido preservado:} a versão dirigida sem auto-loops foi mantida
   para o algoritmo de Tarjan, pois na versão não dirigida cada componente conexa seria
   trivialmente uma única componente fortemente conexa.
   \item \textbf{Redução por custo computacional:} um subgrafo induzido de 300 vértices,
-  obtido por BFS a partir de um vértice aleatório da LCC (372 arestas, conexo), é usado
+  obtido por BFS a partir de um vértice aleatório da LCC (\nESub{} arestas, conexo), é usado
   em Bellman-Ford e Floyd-Warshall.
 \end{enumerate}
 
@@ -177,9 +177,9 @@ formulações clássicas dos algoritmos~\cite{cormen2022}, com listas de adjacê
 versões \emph{iterativas} de BFS, DFS e Tarjan~\cite{tarjan1972}, porque a recursão
 estouraria a pilha do Python em grafos com centenas de milhares de vértices. Cada
 implementação foi comparada com o NetworkX em grafos aleatórios pequenos. Os valores
-obtidos no grafo real também coincidem com os publicados pelo SNAP: 267.313 triângulos,
-clusterização média de 0,0671, diâmetro 14 e maior componente fortemente conexa com
-34.203 vértices.
+obtidos no grafo real também coincidem com os publicados pelo SNAP: \triangulos{} triângulos,
+clusterização média de \Ccompleto, diâmetro \diametro{} e maior componente fortemente conexa com
+\maiorScc{} vértices.
 
 \textbf{Diâmetro e raio exatos.} Calcular todas as excentricidades exige uma BFS por
 vértice, $O(V(V+E)) \approx 1{,}3\times10^{11}$ operações. Usamos o algoritmo
@@ -230,13 +230,13 @@ LCC, e a Tabela~\ref{tab:status} indica como cada uma foi obtida.
 \input{tabelas/tab_status}
 
 \textbf{Graus e densidade.} O grafo é extremamente esparso (densidade
-$\approx10^{-5}$, grau médio 3,02 na LCC) e muito heterogêneo: 83,8\% dos vértices da
-LCC têm grau 1, enquanto o maior grau é 7.636. O grau mínimo 0 no grafo completo vem de
-205 vértices cujas únicas arestas eram auto-loops.
+$\approx10^{-5}$, grau médio \grauMedioLcc{} na LCC) e muito heterogêneo: \pctFolhas\% dos vértices da
+LCC têm grau 1, enquanto o maior grau é \grauMax. O grau mínimo 0 no grafo completo vem de
+\nIsolados{} vértices cujas únicas arestas eram auto-loops.
 
 \textbf{Componentes.} A Figura~\ref{fig:componentes} mostra a distribuição dos tamanhos
-das 15.836 componentes. Há uma componente gigante (224.832 vértices), duas componentes
-médias (1.850 e 1.373 vértices) e milhares de componentes minúsculas: 13.276 têm apenas
+das \nComp{} componentes. Há uma componente gigante (\nVLcc{} vértices), duas componentes
+médias (\compSegunda{} e \compTerceira{} vértices) e milhares de componentes minúsculas: \compPares{} têm apenas
 2 vértices, tipicamente um par de endereços que só trocaram e-mail entre si. A lista com
 o tamanho de cada componente está no repositório
 (\texttt{componentes\_tamanhos.csv}).
@@ -256,9 +256,9 @@ exato, o que valida o estimador usado nos modelos nulos e na robustez. Assim, do
 endereços quaisquer da LCC estão, em média, a pouco mais de 4 saltos de distância, apesar
 dos 224 mil vértices.
 
-\textbf{Clusterização.} Há 267.313 triângulos, envolvendo 25.132 vértices. A
-clusterização média ($C=0{,}079$) é cerca de 19 vezes maior que a transitividade
-($0{,}0042$). Isso ocorre porque a transitividade é dominada pelos hubs, cujos milhares
+\textbf{Clusterização.} Há \triangulos{} triângulos, envolvendo \verticesTriangulos{} vértices. A
+clusterização média ($C=\Clcc$) é cerca de 19 vezes maior que a transitividade
+($\transit$). Isso ocorre porque a transitividade é dominada pelos hubs, cujos milhares
 de vizinhos quase nunca se conectam entre si, enquanto a média local é puxada por
 vértices de grau baixo inseridos em grupos coesos.
 
@@ -292,15 +292,15 @@ a complexidade teórica, o tempo observado (média, desvio e IC 95\%) e o result
 
 \input{tabelas/tab_algoritmos}
 
-\textbf{BFS e DFS.} Ambas visitaram os 224.832 vértices, confirmando que a LCC é
+\textbf{BFS e DFS.} Ambas visitaram os \nVLcc{} vértices, confirmando que a LCC é
 conexa. A BFS a partir do vértice 0 atinge profundidade 10, sua excentricidade. A DFS é
 mais lenta por manter, para cada vértice da pilha, o índice do próximo vizinho, o que
 reproduz exatamente a ordem da DFS recursiva.
 
 \textbf{Eulerianidade.} Pelo teorema de Euler, um grafo conexo tem circuito euleriano
 se todos os graus são pares, e caminho euleriano se exatamente dois graus são ímpares.
-A LCC tem 198.520 vértices de grau ímpar e, portanto, não é euleriana. No dirigido,
-242.614 vértices têm grau de entrada diferente do de saída, e o grafo nem é fracamente
+A LCC tem \grauImpar{} vértices de grau ímpar e, portanto, não é euleriana. No dirigido,
+\desbalanceados{} vértices têm grau de entrada diferente do de saída, e o grafo nem é fracamente
 conexo. Também implementamos o algoritmo de Hierholzer, que constrói o circuito quando
 ele existe (validado nos testes).
 
@@ -310,7 +310,7 @@ menor custo prefere cadeias de laços recíprocos: a partir do vértice 0, o end
 ``distante'' está a custo \distMaxDijkstra. Dijkstra alcançou toda a LCC e foi cerca de
 \razaoDijkstraBfs{} vezes mais lento que a BFS, devido ao custo do heap. Bellman-Ford
 ($O(V\cdot E)$) foi executado no subgrafo: na LCC seriam até
-$224.832 \times 679.850 \approx 1{,}5\times10^{11}$ relaxamentos no pior caso. Ele produziu
+$\nVLcc \times \nArcos \approx 1{,}5\times10^{11}$ relaxamentos no pior caso. Ele produziu
 as mesmas distâncias que Dijkstra e parou após apenas \rodadasBf{} das até $V-1=299$ rodadas, graças à
 parada antecipada: como cada rodada percorre todas as arestas em sequência, uma única
 rodada pode propagar distâncias por vários saltos. Para não depender só desse subgrafo,
@@ -325,11 +325,11 @@ $\approx1{,}1\times10^{16}$ operações e uma matriz de $5\times10^{10}$ célula
 400~GB), o que é inviável.
 
 \textbf{Tarjan.} Na versão dirigida, a maior componente fortemente conexa tem apenas
-34.203 vértices (12,9\%), enquanto a maior componente não dirigida tem 84,8\%: a maior
+\maiorScc{} vértices (\pctMaiorScc\%), enquanto a maior componente não dirigida tem \pctVLcc\%: a maior
 parte da comunicação não é recíproca. Com a mesma técnica de \emph{low-link} obtivemos
-188.668 pontes (quase todas arestas de folhas) e 2.223 vértices de articulação na LCC.
+\pontes{} pontes (quase todas arestas de folhas) e \articulacoes{} vértices de articulação na LCC.
 
-\textbf{Prim e Kruskal.} Ambos produziram árvores com $V-1 = 224.831$ arestas e o mesmo
+\textbf{Prim e Kruskal.} Ambos produziram árvores com $V-1 = \nVLccMenosUm$ arestas e o mesmo
 peso total (\pesoMst), o que confirma a correção. Com pesos 1 e 2, o peso revela a
 composição da árvore: ela usa \recipNaArvore{} laços recíprocos, ou seja, todos os que
 não fecham ciclo com outros recíprocos, e completa a conexão com laços de mão única.
@@ -396,10 +396,10 @@ como tendências, e não como expoentes precisos.
 \subsubsection{Small-world}
 Seguindo o Apêndice~A~\cite{watts1998,humphries2008}, comparamos $L$ e $C$ da LCC com
 uma referência aleatória de Erd\H{o}s--Rényi $G(n,m)$~\cite{erdos1959} com o mesmo número de
-vértices e de arestas (logo o mesmo $\langle k \rangle = 3{,}024$), gerada por código
+vértices e de arestas (logo o mesmo $\langle k \rangle = \grauMedioLccTres$), gerada por código
 próprio, sem bibliotecas prontas, em 5 realizações. Como o $G(n,m)$ com
 $\langle k\rangle\approx3$ não é conexo, $L_{rand}$ foi medido na sua maior componente
-(94,2\% dos vértices). Os valores analíticos
+(\pctGiganteER\% dos vértices). Os valores analíticos
 $C_{rand}\approx\langle k\rangle/n$ e $L_{rand}\approx\ln n/\ln\langle k\rangle$ servem
 de conferência. O coeficiente é $\sigma = (C/C_{nulo})/(L/L_{nulo})$, e $\sigma > 1$
 indica \emph{small-world}.
@@ -450,19 +450,19 @@ distância de Kolmogorov--Smirnov (KS). A Tabela~\ref{tab:powerlaw} resume os re
 \end{figure*}
 
 \textbf{A distribuição sugere lei de potência? Apenas aproximadamente.} O histograma em
-log-log é quase uma reta ($R^2=0{,}98$, $\gamma\approx1{,}9$), e a cauda é claramente
-pesada: hubs de grau até 7.636 seriam virtualmente impossíveis numa distribuição de
+log-log é quase uma reta ($R^2=\Rbins$, $\gamma\approx1{,}9$), e a cauda é claramente
+pesada: hubs de grau até \grauMax{} seriam virtualmente impossíveis numa distribuição de
 Poisson com média 3. A CCDF, porém, mostra \emph{dois regimes} e um corte: uma queda
 íngreme na cabeça ($\gamma\approx2{,}8$, dominada pelos 84\% de vértices de grau 1),
 uma cauda mais plana entre $k\approx10$ e $k\approx500$ ($\gamma\approx1{,}7$) e uma
 queda acentuada acima de $k\approx1.000$. A estimativa de máxima verossimilhança varia
-de 2,83 a 1,66 conforme $k_{min}$, e a distância KS na cauda (0,05 a 0,13) é alta. A
+de \gammaSensMax{} a \gammaSensMin{} conforme $k_{min}$, e a distância KS na cauda (\ksCaudaMin{} a \ksCaudaMax) é alta. A
 conclusão é que a rede é livre de escala no sentido qualitativo (heterogênea, com
 hubs), mas uma lei de potência pura não descreve bem toda a distribuição.
 
 \subsubsection{Robustez}
-Seguindo o Apêndice~C, trabalhamos na LCC ($N = 224.832$) e removemos
-$r=\lfloor0{,}05N\rfloor=11.241$ vértices em dois cenários: (a) remoção aleatória,
+Seguindo o Apêndice~C, trabalhamos na LCC ($N = \nVLcc$) e removemos
+$r=\lfloor0{,}05N\rfloor=\rRemovidos$ vértices em dois cenários: (a) remoção aleatória,
 com $R=30$ repetições; e (b) ataque direcionado pelo \emph{ranking fixo} de uma
 centralidade, calculado uma vez no grafo original, removendo os $r$ primeiros. Usamos as
 três centralidades sugeridas, todas implementadas por nós e validadas contra o NetworkX:
@@ -488,15 +488,15 @@ maior componente (50 fontes); e D, a fração de vértices isolados entre os res
 \textbf{(a) Robusta à remoção aleatória de 5\%? Sim.} A maior componente mantém
 $S_{rand}/S_0 = \Srand$ dos vértices (Tabela~\ref{tab:robustez} e
 Figura~\ref{fig:robustez}): perde pouco mais que os 5\% removidos. O comprimento médio
-quase não muda (4,02 para 4,12), e só 4,4\% dos vértices ficam isolados. O desvio
-alto de B (cerca de 3.500) ocorre porque, quando o sorteio atinge um hub por acaso, suas
+quase não muda (\Loriginal{} para \Laleatoria), e só \pctIsolAleat\% dos vértices ficam isolados. O desvio
+alto de B (cerca de \BdesvioAleat) ocorre porque, quando o sorteio atinge um hub por acaso, suas
 folhas se desprendem.
 
 \textbf{(b) Robusta à remoção dos 5\% mais centrais? Não, por nenhuma das três
 centralidades.} No ataque por grau, $S_{target}/S_0 = 2{,}7\times10^{-5}$: a maior
-componente restante tem \textbf{\maiorCompGrau{} vértices}, há 213.168 componentes e 99,7\% dos
+componente restante tem \textbf{\maiorCompGrau{} vértices}, há \compAtaqueGrau{} componentes e \pctIsolGrau\% dos
 vértices restantes ficam isolados. Por PageRank, a maior componente fica com
-\textbf{\maiorCompPr{} vértices}; por betweenness, com \textbf{\maiorCompBtw}. Nos três casos, mais de 99,6\%
+\textbf{\maiorCompPr{} vértices}; por betweenness, com \textbf{\maiorCompBtw}. Nos três casos, mais de \pctIsolMin\%
 dos vértices restantes ficam isolados. O resultado é robusto à escolha da centralidade.
 Grau e PageRank escolhem \sobrepGrauPr\% dos mesmos alvos, porque, nesta rede, influência global e
 número de contatos andam juntos. A betweenness concorda com eles em apenas \sobrepGrauBtw\% e \sobrepPrBtw\%
@@ -513,11 +513,11 @@ Tabela~\ref{tab:hubs} mostra o perfil deles. Os 10 maiores hubs recebem e-mails 
 milhares de endereços distintos, mas escrevem para poucos. O maior recebeu mensagens de
 \hubRemetentes{} endereços, enviou para apenas \hubDestinatarios, e \hubFolhas\% dos seus vizinhos são folhas: é uma
 estrela quase perfeita, coerente com uma caixa de entrada que recebe mensagens em massa
-(listas, spam) e raramente responde. Os 9 primeiros têm entre 82\% e 99,96\% de
-vizinhos-folha, e os 10 juntos sustentam 37.749 das 188.296 folhas da LCC (20\%). Além
+(listas, spam) e raramente responde. Os 9 primeiros têm entre \folhasMinTopNove\% e \hubFolhas\% de
+vizinhos-folha, e os 10 juntos sustentam \folhasTopDez{} das \nFolhasDeduzidas{} folhas da LCC (\pctFolhasTopDez\%). Além
 disso, 72\% dos vértices aparecem
 \emph{apenas} como origem de mensagens, só 26\% das arestas são recíprocas, e a maior
-componente fortemente conexa tem apenas 12,9\% dos vértices: exatamente os 34.203
+componente fortemente conexa tem apenas \pctMaiorScc\% dos vértices: exatamente os \maiorScc
 endereços que, segundo o SNAP, enviaram \emph{e} receberam mensagens. O quadro é o de um
 núcleo pequeno de 1.258 endereços da instituição, que se comunicam entre si, cercado por
 uma periferia enorme de endereços externos que o SNAP descreve como inexistentes,
@@ -548,15 +548,15 @@ comparam grau, clusterização, caminho médio e cauda da distribuição de grau
   \label{fig:modelos}
 \end{figure}
 
-\textbf{Nenhum modelo reproduz a rede.} O \textbf{ER} é descartado: grau máximo de 13
-contra 7.636, $C$ cerca de 10 mil vezes menor e $L$ quase três vezes maior. O
-\textbf{WS} reproduz o agrupamento ($C=0{,}37$, até maior que o real), mas tem graus quase
-homogêneos (máximo de 8) e $L=17{,}3$, quatro vezes o real. O \textbf{BA} é o mais
-próximo na cauda: gera hubs (grau máximo de 954) e segue uma lei de potência quase perfeita
-($\gamma=2{,}87$, próximo do 3 teórico, com KS de 0,006). Mesmo assim, ele erra em três
-pontos. Tem $C$ cerca de 200 vezes menor; não tem nenhum vértice de grau 1, contra 84\%
+\textbf{Nenhum modelo reproduz a rede.} O \textbf{ER} é descartado: grau máximo de \kmaxER
+contra \grauMax, $C$ cerca de 10 mil vezes menor e $L$ quase três vezes maior. O
+\textbf{WS} reproduz o agrupamento ($C=\Cws$, até maior que o real), mas tem graus quase
+homogêneos (máximo de \kmaxWS) e $L=\Lws$, quatro vezes o real. O \textbf{BA} é o mais
+próximo na cauda: gera hubs (grau máximo de \kmaxBA) e segue uma lei de potência quase perfeita
+($\gamma=\gammaBA$, próximo do 3 teórico, com KS de \ksBA). Mesmo assim, ele erra em três
+pontos. Tem $C$ cerca de \razaoCba{} vezes menor; não tem nenhum vértice de grau 1, contra 84\%
 no grafo real; e sua cauda é mais íngreme ($\gamma\approx2{,}9$ contra 1,7), com hubs
-oito vezes menores. A rede real combina a cauda pesada do BA, ainda mais extrema, com o
+\razaoKmaxBA{} vezes menores. A rede real combina a cauda pesada do BA, ainda mais extrema, com o
 agrupamento local do WS e uma enorme periferia de folhas que nenhum dos três modelos
 gera. Isso é coerente com a origem descrita pelo SNAP: um núcleo institucional coeso,
 cercado por endereços externos que trocam uma única mensagem.
@@ -568,7 +568,7 @@ cercado por endereços externos que trocam uma única mensagem.
 \textbf{Decisões de tratamento.} A conversão para não dirigido é adequada às perguntas
 de conectividade, mas apaga a assimetria da comunicação, que é justamente uma das
 características mais marcantes da rede (26\% de reciprocidade). Por isso mantivemos o
-grafo dirigido para o Tarjan. Trabalhar na LCC descarta 15,2\% dos vértices, em sua
+grafo dirigido para o Tarjan. Trabalhar na LCC descarta \pctDescartado\% dos vértices, em sua
 maioria pares ou trincas isolados, que pouco influenciam as conclusões.
 
 \textbf{Exatidão contra aproximação.} As três medidas de distância, que pareciam exigir
@@ -623,8 +623,8 @@ comparação exata de $L$.
 \section{Conclusão}
 \label{sec:conclusao}
 
-Analisamos o grafo \texttt{email-EuAll} (G34), com 265.214 vértices e 420.045 arestas,
-reduzido pelo tratamento a uma LCC não dirigida de 224.832 vértices e 339.925 arestas.
+Analisamos o grafo \texttt{email-EuAll} (G34), com \nVBruto{} vértices e \nEBruto{} arestas,
+reduzido pelo tratamento a uma LCC não dirigida de \nVLcc{} vértices e \nELcc{} arestas.
 As principais conclusões são:
 \begin{itemize}
   \item a rede é extremamente esparsa e heterogênea: \pctFolhas\% dos vértices têm grau 1,
@@ -639,7 +639,7 @@ As principais conclusões são:
   que impede uma lei de potência pura;
   \item é robusta a falhas aleatórias (\pctSrand\% na maior componente), mas colapsa com a
   remoção dos 5\% mais centrais: a maior componente fica com \maiorCompGrau, \maiorCompPr{} e \maiorCompBtw{} vértices nos
-  ataques por grau, PageRank e betweenness, com mais de 99,6\% dos vértices isolados;
+  ataques por grau, PageRank e betweenness, com mais de \pctIsolMin\% dos vértices isolados;
   \item nenhum modelo clássico simulado reproduz a rede: o BA gera hubs, mas não o
   agrupamento nem as folhas; o WS gera agrupamento, mas não hubs; e o ER não gera nenhum
   dos dois. Os 10 maiores hubs recebem de milhares de endereços e escrevem para poucos;
