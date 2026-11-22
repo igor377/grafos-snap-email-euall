@@ -13,15 +13,17 @@ Métricas após a remoção:
 Cenários:
   (a) aleatório: R = 30 repetições, r vértices sorteados uniformemente;
   (b) direcionado: ranking FIXO por centralidade (calculada uma vez no grafo
-      original), removendo os r primeiros. Usamos duas centralidades:
+      original por src.centrality), removendo os r primeiros. Três centralidades:
         - grau (remove os hubs);
-        - PageRank (influência global; implementação própria em
-          src/algorithms/pagerank.py).
-      A betweenness exata não foi usada por custar O(V·E) ≈ 7,6 × 10^10 operações.
+        - PageRank (influência global);
+        - betweenness (vértices "ponte"), estimada pelo algoritmo de Brandes com
+          500 fontes amostradas, já que a exata custaria O(V·E) ≈ 7,6 × 10^10.
+      Todas são implementações próprias (src/algorithms/).
 
-Uso:
-    python -m src.robustness            # completo (~6 min)
-    python -m src.robustness --quick    # 3 repetições
+Uso (requer `python -m src.centrality` antes):
+    python -m src.robustness                  # completo (~7 min)
+    python -m src.robustness --targeted-only  # reaproveita a remoção aleatória do CSV
+    python -m src.robustness --quick          # 3 repetições
 """
 
 import argparse
@@ -35,10 +37,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from src.algorithms.pagerank import pagerank
+from src.centrality import BETWEENNESS_SOURCES, load_centralities
 from src.distances import sampled_paths
 from src.load import FIGURES_DIR, save_figure, TABLES_DIR, load_lcc
-from src.metrics import degrees
 from src.treatment import build_adjacency
 
 SEED = 42
@@ -94,6 +95,8 @@ def main() -> None:
     parser.add_argument("--quick", action="store_true")
     parser.add_argument("--plots-only", action="store_true",
                         help="apenas redesenha a figura a partir dos CSVs existentes")
+    parser.add_argument("--targeted-only", action="store_true",
+                        help="reaproveita a remoção aleatória do CSV e refaz só os ataques")
     args = parser.parse_args()
     reps = 3 if args.quick else 30
 
@@ -109,28 +112,36 @@ def main() -> None:
     base = metrics_after_removal(adj, set(), PATH_SOURCES, SEED)
     print(f"Original: {base}")
 
-    rng = random.Random(SEED)
-    random_rows = []
-    for i in range(reps):
-        removed = set(rng.sample(range(n), r))
-        m = metrics_after_removal(adj, removed, PATH_SOURCES, SEED + i)
-        random_rows.append({"repeticao": i + 1, **m})
-        print(f"  aleatória #{i + 1}: A={m['A_fracao_maior_componente']:.4f} "
-              f"B={m['B_num_componentes']} C={m['C_caminho_medio']:.3f} "
-              f"D={m['D_fracao_isolados']:.4f}")
-    rand = pd.DataFrame(random_rows)
-    rand.to_csv(TABLES_DIR / "parte3_robustez_aleatoria.csv", index=False)
+    if args.targeted_only:
+        rand = pd.read_csv(TABLES_DIR / "parte3_robustez_aleatoria.csv")
+        reps = len(rand)
+        print(f"Remoção aleatória reaproveitada do CSV ({reps} repetições)")
+    else:
+        rng = random.Random(SEED)
+        random_rows = []
+        for i in range(reps):
+            removed = set(rng.sample(range(n), r))
+            m = metrics_after_removal(adj, removed, PATH_SOURCES, SEED + i)
+            random_rows.append({"repeticao": i + 1, **m})
+            print(f"  aleatória #{i + 1}: A={m['A_fracao_maior_componente']:.4f} "
+                  f"B={m['B_num_componentes']} C={m['C_caminho_medio']:.3f} "
+                  f"D={m['D_fracao_isolados']:.4f}")
+        rand = pd.DataFrame(random_rows)
+        rand.to_csv(TABLES_DIR / "parte3_robustez_aleatoria.csv", index=False)
 
-    # Rankings FIXOS, calculados uma vez no grafo original (desempate pelo id)
-    deg = degrees(adj)
-    pr, iters = pagerank(n, edges)
-    rankings = {
-        "grau": sorted(range(n), key=lambda v: (-deg[v], v)),
-        "pagerank": sorted(range(n), key=lambda v: (-pr[v], v)),
-    }
-    overlap = len(set(rankings["grau"][:r]) & set(rankings["pagerank"][:r])) / r
-    print(f"PageRank convergiu em {iters} iterações; sobreposição dos top-r "
-          f"(grau × PageRank) = {overlap:.1%}")
+    # Rankings FIXOS, calculados uma vez no grafo original (src.centrality), com
+    # desempate pelo id do vértice
+    cent = load_centralities()
+    rankings = {name: sorted(range(n), key=lambda v, c=cent[col].to_numpy(): (-c[v], v))
+                for name, col in (("grau", "grau"), ("pagerank", "pagerank"),
+                                  ("betweenness", "betweenness"))}
+    tops = {k: set(v[:r]) for k, v in rankings.items()}
+    overlaps = {f"sobreposicao_{a}_{b}": len(tops[a] & tops[b]) / r
+                for a, b in (("grau", "pagerank"), ("grau", "betweenness"),
+                             ("pagerank", "betweenness"))}
+    print("Sobreposição dos top-r: " + ", ".join(
+        f"{k.removeprefix('sobreposicao_').replace('_', ' × ')} = {v:.1%}"
+        for k, v in overlaps.items()))
     targets = {}
     for name, ranking in rankings.items():
         targets[name] = metrics_after_removal(adj, set(ranking[:r]), PATH_SOURCES, SEED)
@@ -145,8 +156,8 @@ def main() -> None:
                      **{f"direcionada_{k}": t[mname] for k, t in targets.items()}})
     summary = pd.DataFrame(rows)
     summary.to_csv(TABLES_DIR / "parte3_robustez.csv", index=False)
-    pd.DataFrame([{"top_r": r, "sobreposicao_grau_pagerank": overlap,
-                   "iteracoes_pagerank": iters}]).to_csv(
+    pd.DataFrame([{"top_r": r, **overlaps,
+                   "fontes_betweenness": BETWEENNESS_SOURCES}]).to_csv(
         TABLES_DIR / "parte3_robustez_rankings.csv", index=False)
     print()
     print(summary.to_string(index=False))
@@ -164,7 +175,8 @@ TITLES = {"A_fracao_maior_componente": "A: S/N (maior componente)",
           "C_caminho_medio": "C: caminho médio na maior comp.",
           "D_fracao_isolados": "D: fração de isolados"}
 TARGET_STYLE = {"direcionada_grau": ("D", "red", "grau"),
-                "direcionada_pagerank": ("^", "darkorange", "PageRank")}
+                "direcionada_pagerank": ("^", "darkorange", "PageRank"),
+                "direcionada_betweenness": ("v", "purple", "betweenness")}
 
 
 def plot_robustness(rand: pd.DataFrame, summary: pd.DataFrame, r: int) -> None:

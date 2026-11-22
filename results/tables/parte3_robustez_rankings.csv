@@ -1,2 +1,2 @@
-top_r,sobreposicao_grau_pagerank,iteracoes_pagerank
-11241,0.9299884351925986,129
+top_r,sobreposicao_grau_pagerank,sobreposicao_grau_betweenness,sobreposicao_pagerank_betweenness,fontes_betweenness
+11241,0.9299884351925986,0.6856151587937016,0.7247575838448537,500
