@@ -1,7 +1,7 @@
 """Parte III.3: robustez à remoção de 5% dos vértices (Apêndice C).
 
 Política para grafo desconexo: trabalhamos na LCC (N = 224.832 vértices).
-r = ⌊0,05 · N⌋ vértices são removidos, junto com as arestas incidentes.
+r = ⌈0,05 · N⌉ vértices (teto, como no enunciado) são removidos, junto com as arestas incidentes.
 
 Métricas após a remoção:
   A: S/N, fração de vértices (em relação ao N original) na maior componente;
@@ -27,6 +27,7 @@ Uso (requer `python -m src.centrality` antes):
 """
 
 import argparse
+import math
 import random
 import statistics
 from collections import deque
@@ -101,16 +102,25 @@ def main() -> None:
     reps = 3 if args.quick else 30
 
     n, edges, _ = load_lcc()
-    r = int(FRACTION * n)
+    r = math.ceil(FRACTION * n)
     if args.plots_only:
         plot_robustness(pd.read_csv(TABLES_DIR / "parte3_robustez_aleatoria.csv"),
                         pd.read_csv(TABLES_DIR / "parte3_robustez.csv"), r)
         return
     adj = build_adjacency(n, edges)
-    print(f"N = {n}, r = ⌊0,05·N⌋ = {r}")
+    print(f"N = {n}, r = ⌈0,05·N⌉ = {r}")
 
     base = metrics_after_removal(adj, set(), PATH_SOURCES, SEED)
     print(f"Original: {base}")
+    # Referência de C no grafo intacto: o L EXATO da Parte I (src.distances), se já
+    # calculado. A estimativa com PATH_SOURCES fontes fica em "original_estimado", para
+    # mostrar o erro do estimador (que também afeta os valores após a remoção).
+    base_est = dict(base)
+    exact_csv = TABLES_DIR / "parte1_caminho_exato.csv"
+    if exact_csv.exists():
+        base["C_caminho_medio"] = float(pd.read_csv(exact_csv)["L_exato"].iloc[0])
+        print(f"C original = L exato = {base['C_caminho_medio']:.4f} "
+              f"(estimado com {PATH_SOURCES} fontes: {base_est['C_caminho_medio']:.4f})")
 
     if args.targeted_only:
         rand = pd.read_csv(TABLES_DIR / "parte3_robustez_aleatoria.csv")
@@ -151,7 +161,8 @@ def main() -> None:
     for mname in METRICS:
         mean = statistics.fmean(rand[mname])
         sd = statistics.stdev(rand[mname]) if reps > 1 else 0.0
-        rows.append({"metrica": mname, "original": base[mname], "aleatoria_media": mean,
+        rows.append({"metrica": mname, "original": base[mname],
+                     "original_estimado": base_est[mname], "aleatoria_media": mean,
                      "aleatoria_desvio": sd,
                      **{f"direcionada_{k}": t[mname] for k, t in targets.items()}})
     summary = pd.DataFrame(rows)

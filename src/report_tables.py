@@ -267,7 +267,8 @@ def tab_robustez():
         rows.append([label, f(r.original), pm, *(f(r[t]) for t in targets)])
     reps = len(csv("parte3_robustez_aleatoria"))
     table("robustez", "Robustez após remover 5\\% dos vértices (média $\\pm$ desvio em "
-          f"{reps} repetições na remoção aleatória; ataques com ranking fixo).",
+          f"{reps} repetições na remoção aleatória; ataques com ranking fixo). "
+          "Em C, o original é o $L$ exato; após a remoção, $L$ é estimado com 50 fontes.",
           "lrr" + "r" * len(targets),
           ["Métrica", "Original", "Aleatória", *(f"Ataque: {tnames.get(t, t)}" for t in targets)],
           rows, resize=True)
@@ -350,9 +351,11 @@ def numeros_extras(n_lcc) -> dict[str, str]:
         "gammaSensMax": dec(sens["gamma_mle"].max(), 2),
         "gammaSensMin": dec(sens["gamma_mle"].min(), 2),
         "ksCaudaMin": dec(tail["ks"].min(), 2), "ksCaudaMax": dec(tail["ks"].max(), 2),
-        "rRemovidos": inteiro(int(0.05 * n_lcc)),
+        "rRemovidos": inteiro(math.ceil(0.05 * n_lcc)),
         "Loriginal": dec(rb.loc["C_caminho_medio", "original"], 2),
         "Laleatoria": dec(rb.loc["C_caminho_medio", "aleatoria_media"], 2),
+        "LaleatoriaDesvio": dec(rb.loc["C_caminho_medio", "aleatoria_desvio"], 2),
+        "LoriginalEst": dec(rb.loc["C_caminho_medio", "original_estimado"], 2),
         "pctIsolAleat": dec(100 * rb.loc[D, "aleatoria_media"], 1),
         "BdesvioAleat": inteiro(round(rb.loc["B_num_componentes", "aleatoria_desvio"], -2)),
         "compAtaqueGrau": inteiro(rb.loc["B_num_componentes", "direcionada_grau"]),
@@ -464,6 +467,9 @@ def numeros() -> dict[str, str]:
         "rodadasBf": re.search(r"(\d+) rodadas", res["Bellman-Ford"]).group(1),
         "rodadasEscala": (lambda lo, hi: str(lo) if lo == hi else f"{lo} a {hi}")(
             int(esc_bf["rodadas"].min()), int(esc_bf["rodadas"].max())),
+        "tBfEscala": dec(esc_bf.sort_values("V")["media_s"].iloc[-1], 3),
+        "vBfEscala": inteiro(esc_bf["V"].max()),
+        "eBfEscala": inteiro(esc_bf.sort_values("V")["E"].iloc[-1]),
         "tFwNumpyMil": dec(esc.query("algoritmo == 'Floyd-Warshall (numpy)'")
                            .sort_values("V")["media_s"].iloc[-1], 1),
         **{f"exp{k}": dec(ex2[v], 2) for k, v in (
