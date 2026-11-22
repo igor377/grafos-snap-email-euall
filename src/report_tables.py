@@ -178,18 +178,33 @@ def tab_algoritmos():
                      cplx.get(r.complexidade, tex_text(r.complexidade)), dec(r.media_s, 4),
                      dec(r.desvio_s, 4), f"[{dec(r.ic95_inf_s, 4)}; {dec(r.ic95_sup_s, 4)}]",
                      tex_text(res[r.algoritmo])])
-    n_z = int(t.loc[t["distribuicao"] == "Normal (Z)", "n"].iloc[0])
+        if r.algoritmo == "Bellman-Ford":
+            # maior subgrafo do estudo de escala, para não ficar só com os 300 vértices
+            esc = csv("parte2_escala")
+            b = esc[esc["algoritmo"] == "Bellman-Ford"].sort_values("V").iloc[-1]
+            rows.append([tex_text(r.algoritmo) + ("*" if b.distribuicao != "Normal (Z)" else ""),
+                         f"subgrafo {inteiro(b.V)}",
+                         cplx.get(r.complexidade, tex_text(r.complexidade)), dec(b.media_s, 4),
+                         dec(b.desvio_s, 4),
+                         f"[{dec(b.ic95_inf_s, 4)}; {dec(b.ic95_sup_s, 4)}]",
+                         f"{inteiro(b.E)} arestas; {int(b.rodadas)} rodadas"])
+    z_rows = t[t["distribuicao"] == "Normal (Z)"]
     t_rows = t[t["distribuicao"] != "Normal (Z)"]
-    note = (f", exceto onde indicado com * (t-Student, $n={int(t_rows['n'].iloc[0])}$)"
-            if len(t_rows) else "")
+    if len(z_rows):
+        note = f"IC 95\\% pela Normal ($n={int(z_rows['n'].iloc[0])}$)"
+        if len(t_rows):
+            note += f", exceto onde indicado com * (t-Student, $n={int(t_rows['n'].iloc[0])}$)"
+    else:  # execução reduzida (--quick): todas as medições com n < 30
+        note = "IC 95\\% pela t-Student (*), execução reduzida"
     table("algoritmos", "Algoritmos: complexidade teórica, tempo observado e resultado. "
-          f"IC 95\\% pela Normal ($n={n_z}$){note}.", "llllrrl",
+          f"{note}.", "llllrrl",
           ["Algoritmo", "Grafo", "Complexidade", "Média (s)", "Desvio (s)", r"IC 95\% (s)",
            "Resultado"], rows, wide=True, resize=True)
 
 
 def tab_escala():
     e = csv("parte2_expoentes")
+    exp_v = csv("parte2_ajuste_vertices_arestas").set_index("algoritmo")["expoente_vs_V"]
     reps = int(csv("parte2_escala")["n"].iloc[0])
     fn = {"V+E": "$V+E$", "(V+E) log V": r"$(V+E)\log V$", "E log V": r"$E\log V$",
           "V·E": r"$V\cdot E$", "V³": "$V^3$"}
@@ -199,11 +214,14 @@ def tab_escala():
         if "rodadas_min" in e and pd.notna(r.rodadas_min):
             obs = f"{int(r.rodadas_min)} a {int(r.rodadas_max)} rodadas (parada antecipada)"
         rows.append([tex_text(r.algoritmo), fn.get(r.funcao_teorica, tex_text(r.funcao_teorica)),
-                     dec(r.expoente_vs_f, 2), dec(r.R2_vs_f, 3),
-                     f"{inteiro(r.V_min)}--{inteiro(r.V_max)}", obs])
+                     dec(r.expoente_vs_f, 2),
+                     dec(exp_v[r.algoritmo], 2) if r.algoritmo in exp_v else "--",
+                     dec(r.R2_vs_f, 3), f"{inteiro(r.V_min)}--{inteiro(r.V_max)}", obs])
     table("escala", "Complexidade observada: inclinação em log-log do tempo médio contra a "
-          f"função teórica $f(n)$ (ideal: 1), com {reps} repetições por tamanho.",
-          "llrrrl", ["Algoritmo", "$f(n)$", "Inclinação", "$R^2$", r"Vértices", "Observação"],
+          f"função teórica $f(n)$ (ideal: 1) e, nos lineares e quase lineares, contra $V$, "
+          f"com {reps} repetições por tamanho.",
+          "llrrrrl", ["Algoritmo", "$f(n)$", "Incl. $f(n)$", "Incl. $V$", "$R^2$",
+                      r"Vértices", "Observação"],
           rows, resize=True)
 
 
@@ -467,6 +485,13 @@ def numeros() -> dict[str, str]:
         "rodadasBf": re.search(r"(\d+) rodadas", res["Bellman-Ford"]).group(1),
         "rodadasEscala": (lambda lo, hi: str(lo) if lo == hi else f"{lo} a {hi}")(
             int(esc_bf["rodadas"].min()), int(esc_bf["rodadas"].max())),
+        **(lambda ve: {
+            "evMaiorEscala": dec(ve["E_por_V_menor_grafo"].iloc[0], 1),
+            "evMenorEscala": dec(ve["E_por_V_maior_grafo"].iloc[0], 1),
+            "expVMin": dec(ve["expoente_vs_V"].min(), 2),
+            "expVMax": dec(ve["expoente_vs_V"].max(), 2),
+            "Rnm": dec(math.floor(1000 * ve["R2_aV_bE"].min()) / 1000, 3),
+        })(csv("parte2_ajuste_vertices_arestas")),
         "tBfEscala": dec(esc_bf.sort_values("V")["media_s"].iloc[-1], 3),
         "vBfEscala": inteiro(esc_bf["V"].max()),
         "eBfEscala": inteiro(esc_bf.sort_values("V")["E"].iloc[-1]),

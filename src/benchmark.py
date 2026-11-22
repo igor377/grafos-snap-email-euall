@@ -15,6 +15,8 @@ custo, a inclinação é ≈ 1. Cada tamanho é medido 30 vezes, com IC 95% por 
 Os lineares e quase lineares usam subgrafos de 14 mil vértices até a LCC inteira;
 Bellman-Ford, de 1 mil a 16 mil; Floyd-Warshall, de 50 a 300 (Python puro) e de
 250 a 1.000 (versão vetorizada com numpy, mesmo algoritmo O(V³)).
+Nos lineares e quase lineares, também se ajusta t ≈ a·V + b·E (vertex_edge_fit),
+porque E/V varia entre os subgrafos.
 
 Uso:
     python -m src.benchmark                 # completo (~20 min)
@@ -272,6 +274,32 @@ def plot_scaling(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(fits)
 
 
+def vertex_edge_fit(df: pd.DataFrame) -> pd.DataFrame:
+    """Lineares e quase lineares: t ≈ a·V + b·E (mínimos quadrados não negativos).
+
+    Os subgrafos de escala são prefixos da ordem de BFS: os hubs entram primeiro e as
+    folhas por último, então E/V cai com o tamanho. Se o custo por vértice (a) for
+    maior que o por aresta (b), a inclinação contra V+E sai acima de 1 mesmo com custo
+    linear. Este ajuste separa os dois custos e mede a inclinação também contra V."""
+    from scipy.optimize import nnls
+    rows = []
+    for name, (fname, _) in THEORY.items():
+        d = df[df["algoritmo"] == name].sort_values("V")
+        if d.empty or "V" not in fname or fname in ("V·E", "V³"):
+            continue
+        v, e, t = (d[c].to_numpy(float) for c in ("V", "E", "media_s"))
+        (a, b), _ = nnls(np.column_stack([v, e]), t)
+        pred = a * v + b * e
+        rows.append({"algoritmo": name, "funcao_teorica": fname,
+                     "E_por_V_menor_grafo": e[0] / v[0], "E_por_V_maior_grafo": e[-1] / v[-1],
+                     "expoente_vs_f": loglog_fit(d["f_teorica"], t)[0],
+                     "expoente_vs_V": loglog_fit(v, t)[0],
+                     "a_ns_por_vertice": a * 1e9, "b_ns_por_aresta": b * 1e9,
+                     "R2_aV_bE": 1 - np.sum((t - pred) ** 2) / np.sum((t - t.mean()) ** 2),
+                     "erro_rel_max": float(np.max(np.abs(pred - t) / t))})
+    return pd.DataFrame(rows)
+
+
 def plot_times(timing: pd.DataFrame) -> None:
     t = timing.sort_values("media_s")
     fig, ax = plt.subplots(figsize=(9, 5))
@@ -301,7 +329,10 @@ def main() -> None:
 
     if args.plots_only:
         plot_times(pd.read_csv(TABLES_DIR / "parte2_tempos.csv"))
-        plot_scaling(pd.read_csv(TABLES_DIR / "parte2_escala.csv"))
+        scaling = pd.read_csv(TABLES_DIR / "parte2_escala.csv")
+        plot_scaling(scaling)
+        vertex_edge_fit(scaling).to_csv(TABLES_DIR / "parte2_ajuste_vertices_arestas.csv",
+                                        index=False)
         return
 
     if not args.scaling_only:
@@ -322,6 +353,9 @@ def main() -> None:
     slopes = plot_scaling(scaling)
     slopes.to_csv(TABLES_DIR / "parte2_expoentes.csv", index=False)
     print(slopes.to_string(index=False))
+    ve = vertex_edge_fit(scaling)
+    ve.to_csv(TABLES_DIR / "parte2_ajuste_vertices_arestas.csv", index=False)
+    print(ve.to_string(index=False))
 
 
 if __name__ == "__main__":

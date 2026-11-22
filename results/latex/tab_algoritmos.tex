@@ -13,6 +13,7 @@
   Eulerianidade (dirigido) & $G_{dir}$ & $O(V+E)$ & 0,5371 & 0,0213 & [0,5295; 0,5447] & não euleriano; 242.614 vértices com entrada$\neq$saída; fracamente conexo: não \\
   Dijkstra (heap) & LCC ponderada & $O((V+E)\log V)$ & 0,6918 & 0,0888 & [0,6601; 0,7236] & alcançou 224.832 vértices; dist. máx. 18 \\
   Bellman-Ford & subgrafo 300 & $O(V\cdot E)$ & 0,0003 & 0,0000 & [0,0003; 0,0003] & alcançou 300 vértices; 2 rodadas \\
+  Bellman-Ford & subgrafo 16.000 & $O(V\cdot E)$ & 0,0620 & 0,0004 & [0,0619; 0,0622] & 71.463 arestas; 3 rodadas \\
   Floyd-Warshall (Python puro)* & subgrafo 300 & $O(V^3)$ & 2,0583 & 0,0633 & [2,0130; 2,1035] & matriz 300$\times$300; dist. máx. 4 \\
   Floyd-Warshall (numpy) & subgrafo 300 & $O(V^3)$ & 0,0594 & 0,0028 & [0,0584; 0,0604] & matriz 300$\times$300; dist. máx. 4 \\
   Tarjan (SCC) & $G_{dir}$ & $O(V+E)$ & 0,6420 & 0,0427 & [0,6267; 0,6572] & 231.000 SCCs; maior com 34.203 vértices \\
