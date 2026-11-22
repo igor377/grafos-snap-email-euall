@@ -13,11 +13,14 @@ log-log, para TODOS os algoritmos: o tempo médio é ajustado contra a própria
 função teórica f(n) (V+E, (V+E) log V, E log V, V·E, V³); se f descreve bem o
 custo, a inclinação é ≈ 1. Cada tamanho é medido 30 vezes, com IC 95% por ponto.
 Os lineares e quase lineares usam subgrafos de 14 mil vértices até a LCC inteira;
-Bellman-Ford, de 1 mil a 16 mil; Floyd-Warshall, de 50 a 300.
+Bellman-Ford, de 1 mil a 16 mil; Floyd-Warshall, de 50 a 300 (Python puro) e de
+250 a 1.000 (versão vetorizada com numpy, mesmo algoritmo O(V³)).
 
 Uso:
-    python -m src.benchmark                 # completo (~17 min)
-    python -m src.benchmark --scaling-only  # só o experimento de escala (~12 min)
+    python -m src.benchmark                 # completo (~20 min)
+    python -m src.benchmark --scaling-only  # só o experimento de escala (~15 min)
+    python -m src.benchmark --scaling-only --only "Floyd-Warshall (numpy)"
+                                            # refaz só um algoritmo da escala
     python -m src.benchmark --plots-only    # só redesenha as figuras a partir dos CSVs
     python -m src.benchmark --quick         # execução reduzida (teste rápido)
 """
@@ -143,6 +146,7 @@ def run_benchmark(runs: int, fw_runs: int) -> tuple[pd.DataFrame, pd.DataFrame]:
 LINEAR_SIZES = (14_000, 28_000, 56_000, 112_000)  # + a LCC inteira
 BF_SIZES = (1_000, 2_000, 4_000, 8_000, 16_000)
 FW_SIZES = (50, 100, 150, 200, 250, 300)
+FW_NUMPY_SIZES = (250, 500, 750, 1_000)
 
 # nome -> (f(n) como texto, função teórica de (V, E))
 THEORY = {
@@ -155,6 +159,7 @@ THEORY = {
     "Kruskal": ("E log V", lambda v, e: e * math.log2(v)),
     "Bellman-Ford": ("V·E", lambda v, e: float(v) * e),
     "Floyd-Warshall": ("V³", lambda v, e: float(v) ** 3),
+    "Floyd-Warshall (numpy)": ("V³", lambda v, e: float(v) ** 3),
 }
 
 
@@ -163,9 +168,10 @@ def theoretical_cost(name: str, v: int, e: int) -> float:
     return THEORY[name][1](v, e)
 
 
-def scaling_experiment(reps: int) -> pd.DataFrame:
-    """Tempo × tamanho para os 9 algoritmos em subgrafos induzidos por prefixos da
-    ordem de BFS da LCC (todo prefixo é conexo). Cada tamanho é medido `reps` vezes."""
+def scaling_experiment(reps: int, only: set[str] | None = None) -> pd.DataFrame:
+    """Tempo × tamanho para os 9 algoritmos (e a versão numpy do Floyd-Warshall) em
+    subgrafos induzidos por prefixos da ordem de BFS da LCC (todo prefixo é conexo).
+    Cada tamanho é medido `reps` vezes. `only` restringe a alguns algoritmos."""
     n, edges, weights = load_lcc()
     adj = build_adjacency(n, edges)
     order = bfs_sample(adj, n)
@@ -179,13 +185,17 @@ def scaling_experiment(reps: int) -> pd.DataFrame:
     rows = []
 
     def record(name, kk, m, fn, extra=None):
+        if only and name not in only:
+            return
         result, times = measure(fn, reps)
         rows.append({"algoritmo": name, "V": kk, "E": m,
                      "f_teorica": theoretical_cost(name, kk, m),
                      **(extra(result) if extra else {}), **confidence_interval(times)})
         print(f"  escala {name:30s} V={kk:>7} E={m:>7} média {statistics.fmean(times):.4f}s")
 
-    for k in (*LINEAR_SIZES, n):
+    linear = {"BFS", "DFS", "Eulerianidade", "Tarjan (pontes/articulações)", "Dijkstra",
+              "Prim", "Kruskal"}
+    for k in (*LINEAR_SIZES, n) if not only or only & linear else ():
         kk, se, sw = sub(k)
         a = build_adjacency(kk, se)
         wa = build_weighted_adjacency(kk, se, sw)
@@ -204,6 +214,10 @@ def scaling_experiment(reps: int) -> pd.DataFrame:
     for k in FW_SIZES:
         kk, se, sw = sub(k)
         record("Floyd-Warshall", kk, len(se), lambda: floyd_warshall(kk, se, sw))
+    for k in FW_NUMPY_SIZES:
+        kk, se, sw = sub(k)
+        record("Floyd-Warshall (numpy)", kk, len(se),
+               lambda: floyd_warshall_numpy(kk, se, sw))
     return pd.DataFrame(rows)
 
 
@@ -279,6 +293,9 @@ def main() -> None:
                         help="apenas redesenha as figuras a partir dos CSVs existentes")
     parser.add_argument("--scaling-only", action="store_true",
                         help="refaz só o experimento de escala")
+    parser.add_argument("--only", nargs="+", metavar="ALGORITMO",
+                        help="(com --scaling-only) mede só estes algoritmos e substitui "
+                             "apenas as linhas deles no CSV de escala existente")
     args = parser.parse_args()
     runs, fw_runs, reps = (5, 3, 3) if args.quick else (30, 10, 30)
 
@@ -293,8 +310,14 @@ def main() -> None:
         results.to_csv(TABLES_DIR / "parte2_resultados.csv", index=False)
         plot_times(timing)
 
+    only = set(args.only) if args.only else None
+    if only and not only <= set(THEORY):
+        parser.error(f"algoritmos desconhecidos: {sorted(only - set(THEORY))}")
     print(f"\nExperimento de escala ({reps} repetições por tamanho)...")
-    scaling = scaling_experiment(reps)
+    scaling = scaling_experiment(reps, only)
+    if only:
+        old = pd.read_csv(TABLES_DIR / "parte2_escala.csv")
+        scaling = pd.concat([old[~old["algoritmo"].isin(only)], scaling], ignore_index=True)
     scaling.to_csv(TABLES_DIR / "parte2_escala.csv", index=False)
     slopes = plot_scaling(scaling)
     slopes.to_csv(TABLES_DIR / "parte2_expoentes.csv", index=False)
