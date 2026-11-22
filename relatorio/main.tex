@@ -48,8 +48,9 @@ Bellman-Ford, Floyd-Warshall, Tarjan, Prim e Kruskal, reportando média, desvio 
 intervalo de confiança de 95\%. A rede é fortemente \emph{small-world}
 ($\sigma \approx 2{,}7\times10^{4}$), tem distribuição de graus de cauda pesada,
 compatível apenas aproximadamente com uma lei de potência, e é robusta a falhas
-aleatórias, mas colapsa quando os 5\% de vértices mais centrais, por grau ou por
-PageRank, são removidos.
+aleatórias, mas colapsa quando os 5\% de vértices mais centrais são removidos, seja
+por grau, PageRank ou betweenness. Nenhum dos modelos clássicos (Erd\H{o}s--Rényi,
+Barabási--Albert e Watts--Strogatz), simulados por nós, reproduz essa combinação.
 \end{abstract}
 
 \keywords{teoria dos grafos, redes complexas, SNAP, email-EuAll, small-world, lei de potência, robustez}
@@ -102,7 +103,7 @@ O código-fonte, o conjunto de dados tratado, as tabelas e figuras geradas e o
 \url{https://github.com/igor377/grafos-snap-email-euall}. O pipeline completo é executado
 por \texttt{python scripts/run\_all.py}, e o notebook \texttt{notebooks/analise.ipynb}
 reúne todos os resultados. As implementações são conferidas contra o NetworkX por
-110 testes automatizados (\texttt{python -m pytest}).
+117 testes automatizados (\texttt{python -m pytest}).
 
 %% ===================================================================
 \section{Descrição do Grafo Original}
@@ -314,7 +315,8 @@ caminho e união por rank tem custo quase constante.
 estudar o crescimento, medimos \emph{os nove algoritmos} em subgrafos de tamanho
 crescente, induzidos por prefixos da ordem de BFS da LCC (todos conexos). Os de custo
 linear ou quase linear foram medidos de 14 mil vértices até a LCC inteira; Bellman-Ford,
-de 1 mil a 16 mil; e Floyd-Warshall, de 50 a 300. Foram 30 repetições por tamanho, com
+de 1 mil a 16 mil; e Floyd-Warshall, de 50 a 300 em Python puro e de 250 a 1.000 na
+versão vetorizada (numpy). Foram 30 repetições por tamanho, com
 IC 95\% (Normal) em cada ponto. Em cada painel da Figura~\ref{fig:escala}, o tempo é
 ajustado em log-log contra a própria função teórica $f(n)$: se ela descreve o custo, a
 inclinação é 1 (Tabela~\ref{tab:escala}).
@@ -326,14 +328,23 @@ em todos os tamanhos. Seu custo real foi, portanto, $O(k\cdot E)$ com $k$ pequen
 $O(V\cdot E)$, porque a cota de $V-1$ rodadas só é atingida em grafos com caminhos mínimos
 muito longos.
 
+A versão vetorizada do Floyd-Warshall é um caso controlado do efeito de memória. Com 1.000
+vértices ela levou 5,3~s, e sua inclinação contra $V^3$ foi \textbf{1,21}, acima da versão
+em Python puro (1,00). A matriz de distâncias ocupa $8V^2$ bytes, de 0,5~MB com 250
+vértices a 8~MB com 1.000, e cada passo $k$ cria uma matriz temporária do mesmo tamanho.
+Quando elas deixam de caber na memória cache do processador, cada operação fica mais
+cara, embora o número de operações continue exatamente $V^3$. Na versão em Python puro,
+o custo do interpretador por operação domina e mascara esse efeito.
+
 BFS (1,49), Eulerianidade (1,31), Dijkstra (1,31) e DFS (1,27) cresceram mais rápido que
 o previsto, com ICs estreitos e $R^2 \ge 0{,}99$, ou seja, não é ruído de medição. O
 número de operações é linear: os testes confirmam que cada vértice entra uma única vez
 na fila ou na pilha. O que cresce é o custo de cada operação. Como o Tarjan percorre as
 mesmas listas de adjacência e ficou em 0,98, o tamanho do grafo sozinho não explica o
-desvio. Atribuímos o restante a efeitos do interpretador Python, como a alocação de
-listas de tamanho $V$ e o gerenciamento de memória, que variam entre implementações.
-Essa é uma hipótese, não algo que tenhamos isolado. A faixa testada, de pouco mais de uma
+desvio. Atribuímos o restante a efeitos de memória e do interpretador Python, como a
+alocação de listas de tamanho $V$, que variam entre implementações. O caso do
+Floyd-Warshall vetorizado mostra que esse tipo de efeito existe e é mensurável, mas, para
+BFS e DFS, isso continua sendo uma hipótese, não algo que tenhamos isolado. A faixa testada, de pouco mais de uma
 ordem de grandeza, também limita a precisão do expoente.
 
 \input{tabelas/tab_escala}
@@ -413,12 +424,14 @@ hubs), mas uma lei de potência pura não descreve bem toda a distribuição.
 Seguindo o Apêndice~C, trabalhamos na LCC ($N = 224.832$) e removemos
 $r=\lfloor0{,}05N\rfloor=11.241$ vértices em dois cenários: (a) remoção aleatória,
 com $R=30$ repetições; e (b) ataque direcionado pelo \emph{ranking fixo} de uma
-centralidade, calculado uma vez no grafo original, removendo os $r$ primeiros. Usamos
-duas das centralidades recomendadas: o \textbf{grau}, que remove os hubs, e o
-\textbf{PageRank}, que mede influência global. O PageRank foi implementado por iteração
-de potência, com amortecimento $d=0{,}85$, convergiu em 129 iterações e foi validado
-contra o NetworkX. A betweenness exata não foi usada por custar
-$O(V\cdot E)\approx7{,}6\times10^{10}$ operações. As métricas são: A, a fração $S/N$ de
+centralidade, calculado uma vez no grafo original, removendo os $r$ primeiros. Usamos as
+três centralidades sugeridas, todas implementadas por nós e validadas contra o NetworkX:
+o \textbf{grau}, que remove os hubs; o \textbf{PageRank}, que mede influência global
+(iteração de potência com $d=0{,}85$, convergiu em 129 iterações); e a
+\textbf{betweenness}, que identifica os vértices ``ponte''. A betweenness exata custaria
+$O(V\cdot E)\approx7{,}6\times10^{10}$ operações. Por isso usamos o algoritmo de Brandes
+com 500 fontes sorteadas e extrapolação por $n/k$, um estimador não enviesado que
+preserva o ranking (verificado nos testes), ao custo de cerca de 5 minutos. As métricas são: A, a fração $S/N$ de
 vértices na maior componente; B, o número de componentes; C, o comprimento médio na
 maior componente (50 fontes); e D, a fração de vértices isolados entre os restantes.
 
@@ -427,8 +440,8 @@ maior componente (50 fontes); e D, a fração de vértices isolados entre os res
 \begin{figure*}[t]
   \centering
   \includegraphics[width=\textwidth]{robustez}
-  \caption{Métricas A a D após remover 5\% dos vértices: boxplots das 30 remoções aleatórias (com média $\pm$ desvio em azul), valor original (quadrado cinza) e ataques aos vértices de maior grau (losango vermelho) e de maior PageRank (triângulo laranja).}
-  \Description{Quatro painéis. Nos painéis A e D, os boxplots aleatórios ficam próximos do original (0,9 e 0,04), enquanto os marcadores dos dois ataques estão no extremo oposto (cerca de 0 e 1). No painel B, os ataques geram mais de 200 mil componentes, contra cerca de 9 mil na remoção aleatória.}
+  \caption{Métricas A a D após remover 5\% dos vértices: boxplots das 30 remoções aleatórias (com média $\pm$ desvio em azul), valor original (quadrado cinza) e ataques aos vértices de maior grau (losango vermelho), PageRank (triângulo laranja) e betweenness (triângulo roxo).}
+  \Description{Quatro painéis. Nos painéis A e D, os boxplots aleatórios ficam próximos do original (0,9 e 0,04), enquanto os marcadores dos três ataques estão no extremo oposto (cerca de 0 e 1). No painel B, os ataques geram mais de 200 mil componentes, contra cerca de 9 mil na remoção aleatória.}
   \label{fig:robustez}
 \end{figure*}
 
@@ -439,24 +452,30 @@ quase não muda (4,02 para 4,12), e só 4,4\% dos vértices ficam isolados. O de
 alto de B (cerca de 3.500) ocorre porque, quando o sorteio atinge um hub por acaso, suas
 folhas se desprendem.
 
-\textbf{(b) Robusta à remoção dos 5\% mais centrais? Não, por nenhuma das duas
+\textbf{(b) Robusta à remoção dos 5\% mais centrais? Não, por nenhuma das três
 centralidades.} No ataque por grau, $S_{target}/S_0 = 2{,}7\times10^{-5}$: a maior
 componente restante tem \textbf{6 vértices}, há 213.168 componentes e 99,7\% dos
-vértices restantes ficam isolados. O ataque por PageRank é ainda um pouco mais
-destrutivo: a maior componente fica com \textbf{3 vértices}
-($S_{target}/S_0 = 1{,}3\times10^{-5}$) e 99,8\% dos vértices ficam isolados. As duas
-centralidades escolhem quase os mesmos alvos (93\% de sobreposição entre os top-$r$),
-porque, nesta rede, influência global e número de contatos andam juntos. Os valores
-1,93 e 1,33 de C não indicam melhora: são distâncias médias
-dentro de ``componentes'' de 6 e 3 vértices. Como $S_{target} \ll S_{rand}$, a rede é
-extremamente vulnerável a ataques direcionados, padrão típico de redes com hubs e cauda
-pesada~\cite{albert2000}.
+vértices restantes ficam isolados. Por PageRank, a maior componente fica com
+\textbf{3 vértices}; por betweenness, com \textbf{11}. Nos três casos, mais de 99,6\%
+dos vértices restantes ficam isolados. O resultado é robusto à escolha da centralidade.
+Grau e PageRank escolhem 93\% dos mesmos alvos, porque, nesta rede, influência global e
+número de contatos andam juntos. A betweenness concorda com eles em apenas 69\% e 73\%
+dos alvos, isto é, remove um conjunto bem diferente de vértices, e mesmo assim produz o
+mesmo colapso. Os valores de C entre 1,3 e 2,3 não indicam melhora: são distâncias
+médias dentro de ``componentes'' de 3 a 11 vértices. Como $S_{target} \ll S_{rand}$, a
+rede é extremamente vulnerável a ataques direcionados, padrão típico de redes com hubs e
+cauda pesada~\cite{albert2000}.
 
 \subsubsection{Descoberta mais interessante}
 A descoberta mais interessante foi \textbf{quão pouco da rede é ``de verdade'' uma rede}.
-A conectividade de 224 mil endereços depende quase só dos hubs. Os 5 maiores hubs têm
-de 94\% a 100\% dos vizinhos com grau 1: são estrelas, ligando milhares de endereços que
-trocaram e-mail com uma única pessoa. Além disso, 72\% dos vértices aparecem
+A conectividade de 224 mil endereços depende quase só dos hubs, e a
+Tabela~\ref{tab:hubs} mostra o perfil deles. Os 10 maiores hubs recebem e-mails de
+milhares de endereços distintos, mas escrevem para poucos. O maior recebeu mensagens de
+7.631 endereços, enviou para apenas 5, e 99,96\% dos seus vizinhos são folhas: é uma
+estrela quase perfeita, coerente com uma caixa de entrada que recebe mensagens em massa
+(listas, spam) e raramente responde. Os 9 primeiros têm entre 82\% e 99,96\% de
+vizinhos-folha, e os 10 juntos sustentam 37.749 das 188.296 folhas da LCC (20\%). Além
+disso, 72\% dos vértices aparecem
 \emph{apenas} como origem de mensagens, só 26\% das arestas são recíprocas, e a maior
 componente fortemente conexa tem apenas 12,9\% dos vértices: exatamente os 34.203
 endereços que, segundo o SNAP, enviaram \emph{e} receberam mensagens. O quadro é o de um
@@ -467,16 +486,40 @@ baixo, a cauda pesada e o colapso completo quando os 5\% de maior grau, que conc
 64\% das extremidades de arestas, são removidos. Na prática, a ``rede de 224 mil
 endereços'' é, sobretudo, o tráfego de e-mail de pouco mais de mil pessoas.
 
+\input{tabelas/tab_hubs}
+
 \subsubsection{Extra: aproximação a modelos clássicos}
-Não simulamos os modelos, mas as medidas permitem uma comparação qualitativa. O
-\textbf{Erd\H{o}s--Rényi} é descartado: tem graus aproximadamente Poisson, $C$ cerca de 10
-mil vezes menor e $L$ quase três vezes maior (Tabela~\ref{tab:smallworld}). O
-\textbf{Watts--Strogatz} reproduz $C$ alto e $L$ baixo, mas tem graus homogêneos e não
-gera hubs de grau 7.636. O \textbf{Barabási--Albert}~\cite{barabasi1999} é o mais próximo
-pela cauda pesada e pela fragilidade a ataques, mas prevê $\gamma=3$, nenhum vértice com
-grau abaixo de $m$ e $C\to0$ em redes grandes, enquanto aqui 84\% dos vértices têm grau 1
-e $C=0{,}079$. A rede combina características de BA (hubs) e WS (agrupamento), sem se
-reduzir a nenhum dos dois.
+Geramos, com código próprio, os três modelos clássicos com o mesmo número de vértices da
+LCC: \textbf{Erd\H{o}s--Rényi} $G(n,m)$, com o mesmo $m$; \textbf{Barabási--Albert}, por
+ligação preferencial com $m=2$ arestas por vértice novo~\cite{barabasi1999} (com $m=1$
+seria uma árvore, sem triângulos); e \textbf{Watts--Strogatz}, um anel com $k=4$
+vizinhos religado com $p=0{,}1$~\cite{watts1998} ($k$ precisa ser par, e $k=2$ seria um
+anel simples). Como $m$ e $k$ são inteiros, BA e WS ficam com cerca de $2n$ arestas, um
+pouco acima das $1{,}5n$ da LCC. A Tabela~\ref{tab:modelos} e a Figura~\ref{fig:modelos}
+comparam grau, clusterização, caminho médio e cauda da distribuição de graus.
+
+\input{tabelas/tab_modelos}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{modelos_ccdf}
+  \caption{CCDF dos graus do grafo real e dos três modelos clássicos (log-log).}
+  \Description{Gráfico log-log: Erd\H{o}s--Rényi e Watts--Strogatz caem abruptamente antes do grau 15; Barabási--Albert forma uma reta até grau de cerca de 1000; o grafo real começa mais íngreme, tem um trecho mais plano entre 10 e 1000 e chega a graus de 7636.}
+  \label{fig:modelos}
+\end{figure}
+
+\textbf{Nenhum modelo reproduz a rede.} O \textbf{ER} é descartado: grau máximo de 13
+contra 7.636, $C$ cerca de 10 mil vezes menor e $L$ quase três vezes maior. O
+\textbf{WS} reproduz o agrupamento ($C=0{,}37$, até maior que o real), mas tem graus quase
+homogêneos (máximo de 8) e $L=17{,}3$, quatro vezes o real. O \textbf{BA} é o mais
+próximo na cauda: gera hubs (grau máximo de 954) e segue uma lei de potência quase perfeita
+($\gamma=2{,}87$, próximo do 3 teórico, com KS de 0,006). Mesmo assim, ele erra em três
+pontos. Tem $C$ cerca de 200 vezes menor; não tem nenhum vértice de grau 1, contra 84\%
+no grafo real; e sua cauda é mais íngreme ($\gamma\approx2{,}9$ contra 1,7), com hubs
+oito vezes menores. A rede real combina a cauda pesada do BA, ainda mais extrema, com o
+agrupamento local do WS e uma enorme periferia de folhas que nenhum dos três modelos
+gera. Isso é coerente com a origem descrita pelo SNAP: um núcleo institucional coeso,
+cercado por endereços externos que trocam uma única mensagem.
 
 %% ===================================================================
 \section{Discussão Crítica}
@@ -511,12 +554,19 @@ comportamento em instâncias típicas.
 sensibilidade do $\gamma$ ao corte $k_{min}$ e o corte na cauda recomendam cautela ao
 rotular a rede como ``livre de escala''.
 
-\textbf{Robustez.} Grau e PageRank, duas centralidades de natureza distinta (uma local
-e outra global), levaram ao mesmo colapso e escolheram 93\% dos mesmos alvos. Isso
-indica que a fragilidade é uma propriedade da rede, e não um artefato da centralidade
-escolhida. Ficaram de fora a betweenness (viável apenas por amostragem) e a remoção
-adaptativa, que recalcula o ranking após cada remoção e tende a ser ainda mais
-destrutiva.
+\textbf{Robustez.} Três centralidades de naturezas distintas levaram ao mesmo colapso:
+o grau (local), o PageRank (global) e a betweenness (de intermediação). A betweenness
+escolheu cerca de 30\% de alvos diferentes dos outros dois rankings. Isso indica que a
+fragilidade é uma propriedade da rede, e não um artefato da centralidade escolhida. A
+betweenness, porém, é uma estimativa amostral (500 fontes): os vértices de posição
+intermediária no ranking podem mudar com outra amostra, embora os principais se mantenham
+(verificado nos testes). Ficou de fora a remoção adaptativa, que recalcula o ranking após
+cada remoção e tende a ser ainda mais destrutiva.
+
+\textbf{Modelos clássicos.} Os parâmetros inteiros de BA ($m=2$) e WS ($k=4$) deram cerca
+de 30\% mais arestas que a LCC. Isso não muda as conclusões, que se apoiam em diferenças
+de uma ou mais ordens de grandeza (grau máximo, $C$ e fração de folhas), mas impede uma
+comparação exata de $L$.
 
 %% ===================================================================
 \section{Conclusão}
@@ -534,13 +584,18 @@ As principais conclusões são:
   ($\gamma\approx1{,}9$ a $2{,}0$ nos ajustes lineares), mas com dois regimes e corte, o
   que impede uma lei de potência pura;
   \item é robusta a falhas aleatórias (90,7\% na maior componente), mas colapsa com a
-  remoção dos 5\% mais centrais: a maior componente fica com 6 vértices no ataque por
-  grau e com 3 no ataque por PageRank, com mais de 99,7\% dos vértices isolados;
+  remoção dos 5\% mais centrais: a maior componente fica com 6, 3 e 11 vértices nos
+  ataques por grau, PageRank e betweenness, com mais de 99,6\% dos vértices isolados;
+  \item nenhum modelo clássico simulado reproduz a rede: o BA gera hubs, mas não o
+  agrupamento nem as folhas; o WS gera agrupamento, mas não hubs; e o ER não gera nenhum
+  dos dois. Os 10 maiores hubs recebem de milhares de endereços e escrevem para poucos;
+  o maior é uma estrela com 7.631 remetentes e apenas 5 destinatários;
   \item todos os algoritmos da disciplina foram implementados e validados; os de custo
   linear ou quase linear escalam para o grafo inteiro, enquanto Bellman-Ford e
   Floyd-Warshall exigiram subgrafos. No estudo de escala dos nove algoritmos,
   Floyd-Warshall, Tarjan, Prim e Kruskal confirmaram a complexidade teórica (inclinação
-  $\approx1$ contra $f(n)$), e o Bellman-Ford ficou bem abaixo do seu pior caso.
+  $\approx1$ contra $f(n)$); o Bellman-Ford ficou bem abaixo do seu pior caso, e o
+  Floyd-Warshall vetorizado expôs o custo da memória cache (inclinação 1,21).
 \end{itemize}
 
 %% ===================================================================
