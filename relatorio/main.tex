@@ -25,8 +25,8 @@
 \title[Analisando o grafo email-EuAll do SNAP]{Análise Estrutural e Algorítmica do Grafo \texttt{email-EuAll} do SNAP}
 \subtitle{Trabalho Prático -- Analisando Grafos do SNAP (G34)}
 
-\author{Igor Reis}
-\email{seu.email@ufba.br}
+\author{Igor Reis Santos}
+\email{igorreis@ufba.br}
 \affiliation{%
   \institution{Instituto de Computação, Universidade Federal da Bahia}
   \city{Salvador}
@@ -34,7 +34,7 @@
   \country{Brasil}
 }
 
-\renewcommand{\shortauthors}{Igor Reis}
+\renewcommand{\shortauthors}{Igor Reis Santos}
 
 \begin{abstract}
 Este trabalho analisa o grafo \texttt{email-EuAll} do SNAP, uma rede de e-mails de uma
@@ -287,11 +287,12 @@ ele existe (validado nos testes).
 positivos. Com peso unitário, Dijkstra equivaleria à BFS. Dijkstra alcançou toda a LCC
 e foi cerca de 4 vezes mais lento que a BFS, devido ao custo do heap. Bellman-Ford
 ($O(V\cdot E)$) foi executado apenas no subgrafo: na LCC seriam até
-$224.832 \times 679.850 \approx 1{,}5\times10^{11}$ relaxamentos. Ele produziu as mesmas
-distâncias que Dijkstra e parou após apenas 3 das até $V-1=299$ rodadas, graças à
+$224.832 \times 679.850 \approx 1{,}5\times10^{11}$ relaxamentos no pior caso. Ele produziu
+as mesmas distâncias que Dijkstra e parou após apenas 3 das até $V-1=299$ rodadas, graças à
 parada antecipada: como cada rodada percorre todas as arestas em sequência, uma única
-rodada pode propagar distâncias por vários saltos. Não havendo pesos negativos, Dijkstra
-é preferível nesse contexto.
+rodada pode propagar distâncias por vários saltos. Para não depender só desse subgrafo,
+ele também foi medido em subgrafos de até 16 mil vértices no estudo de escala, a seguir.
+Não havendo pesos negativos, Dijkstra é preferível nesse contexto.
 
 \textbf{Floyd-Warshall.} No subgrafo de 300 vértices, a versão em Python puro levou
 1,95~s e a vetorizada (numpy, mesmo algoritmo $O(V^3)$) levou 0,057~s, 34 vezes menos. O
@@ -310,20 +311,30 @@ das 339.925 arestas é feita em C pelo Python, e o \emph{union-find} com compres
 caminho e união por rank tem custo quase constante.
 
 \textbf{Complexidade observada.} A Figura~\ref{fig:tempos} compara os tempos médios. Para
-estudar o crescimento, medimos BFS e Dijkstra em subgrafos da LCC de 14 mil a 224 mil
-vértices, e o Floyd-Warshall em subgrafos de 50 a 300 vértices. Foram 30 repetições por
-tamanho, com IC 95\% (Normal) em cada ponto (Figura~\ref{fig:escala}). A
-Tabela~\ref{tab:escala} traz dois ajustes em log-log: o tempo contra o tamanho da
-entrada e o tempo contra a própria função teórica $f(n)$, cujo expoente ideal é 1. O
-Floyd-Warshall confirma a teoria de forma precisa: inclinação \textbf{2,98} contra $V$
-e \textbf{0,99} contra $V^3$ ($R^2 = 0{,}9999$). BFS e Dijkstra cresceram mais rápido
-que o previsto: expoente 1,50 contra $V+E$ e 1,36 contra $(V+E)\log V$. Os ICs estreitos
-mostram que o desvio não é ruído de medição. Atribuímos o desvio a efeitos de
-memória: subgrafos maiores ocupam mais memória e causam mais faltas de cache por
-operação em Python, e a faixa testada cobre pouco mais de uma ordem de grandeza. Os
-testes confirmam que cada vértice é visitado uma única vez, ou seja, o número de
-operações é linear: o que cresce além do previsto é o custo de cada operação, não a
-quantidade delas.
+estudar o crescimento, medimos \emph{os nove algoritmos} em subgrafos de tamanho
+crescente, induzidos por prefixos da ordem de BFS da LCC (todos conexos). Os de custo
+linear ou quase linear foram medidos de 14 mil vértices até a LCC inteira; Bellman-Ford,
+de 1 mil a 16 mil; e Floyd-Warshall, de 50 a 300. Foram 30 repetições por tamanho, com
+IC 95\% (Normal) em cada ponto. Em cada painel da Figura~\ref{fig:escala}, o tempo é
+ajustado em log-log contra a própria função teórica $f(n)$: se ela descreve o custo, a
+inclinação é 1 (Tabela~\ref{tab:escala}).
+
+Floyd-Warshall (1,00 contra $V^3$, $R^2=0{,}9998$), Tarjan (0,98), Kruskal (1,05) e Prim
+(1,06) confirmam a teoria. \textbf{Bellman-Ford} ficou muito abaixo do pior caso
+(0,61 contra $V\cdot E$): com a parada antecipada, ele convergiu em apenas 4 ou 5 rodadas
+em todos os tamanhos. Seu custo real foi, portanto, $O(k\cdot E)$ com $k$ pequeno, e não
+$O(V\cdot E)$, porque a cota de $V-1$ rodadas só é atingida em grafos com caminhos mínimos
+muito longos.
+
+BFS (1,49), Eulerianidade (1,31), Dijkstra (1,31) e DFS (1,27) cresceram mais rápido que
+o previsto, com ICs estreitos e $R^2 \ge 0{,}99$, ou seja, não é ruído de medição. O
+número de operações é linear: os testes confirmam que cada vértice entra uma única vez
+na fila ou na pilha. O que cresce é o custo de cada operação. Como o Tarjan percorre as
+mesmas listas de adjacência e ficou em 0,98, o tamanho do grafo sozinho não explica o
+desvio. Atribuímos o restante a efeitos do interpretador Python, como a alocação de
+listas de tamanho $V$ e o gerenciamento de memória, que variam entre implementações.
+Essa é uma hipótese, não algo que tenhamos isolado. A faixa testada, de pouco mais de uma
+ordem de grandeza, também limita a precisão do expoente.
 
 \input{tabelas/tab_escala}
 
@@ -338,8 +349,8 @@ quantidade delas.
 \begin{figure*}[t]
   \centering
   \includegraphics[width=\textwidth]{escala_algoritmos}
-  \caption{Tempo médio em função do tamanho da entrada (log-log) para BFS, Dijkstra e Floyd-Warshall, com IC 95\% de 30 repetições por tamanho. A inclinação da reta ajustada estima o expoente observado da complexidade.}
-  \Description{Três gráficos log-log com pontos e barras de erro estreitas sobre retas ajustadas: inclinações 1,50 (BFS), 1,53 (Dijkstra) e 2,98 (Floyd-Warshall), todas com R2 acima de 0,99.}
+  \caption{Complexidade observada dos nove algoritmos: tempo médio (IC 95\%, 30 repetições por tamanho) contra a função teórica $f(n)$, em log-log. Inclinação 1 indica que $f(n)$ descreve o custo observado.}
+  \Description{Nove gráficos log-log, um por algoritmo, com pontos alinhados sobre retas ajustadas. As inclinações vão de 0,61 (Bellman-Ford) a 1,49 (BFS); Floyd-Warshall, Tarjan, Prim e Kruskal ficam próximos de 1.}
   \label{fig:escala}
 \end{figure*}
 
@@ -489,8 +500,11 @@ como o número de mensagens por par, não estão disponíveis no dataset.
 
 \textbf{Tempos em Python.} A diferença de 34 vezes entre as duas versões do
 Floyd-Warshall, com a mesma complexidade, mostra que o tempo real depende fortemente
-de constantes de implementação. Os expoentes observados acima de 1 para BFS e Dijkstra
-lembram que a complexidade assintótica conta operações, não acessos à memória.
+de constantes de implementação. O estudo de escala reforça a lição em dois sentidos: o
+Bellman-Ford, com parada antecipada, ficou muito abaixo do seu pior caso $O(V\cdot E)$,
+e algoritmos lineares como BFS e DFS cresceram acima do previsto. A complexidade
+assintótica conta operações no pior caso, não o custo real de cada operação nem o
+comportamento em instâncias típicas.
 
 \textbf{Lei de potência.} Ajustes lineares em log-log produzem retas convincentes
 ($R^2\approx0{,}98$) mesmo quando a distribuição não é uma lei de potência pura. A
@@ -524,8 +538,9 @@ As principais conclusões são:
   grau e com 3 no ataque por PageRank, com mais de 99,7\% dos vértices isolados;
   \item todos os algoritmos da disciplina foram implementados e validados; os de custo
   linear ou quase linear escalam para o grafo inteiro, enquanto Bellman-Ford e
-  Floyd-Warshall exigiram um subgrafo, e o Floyd-Warshall confirmou empiricamente o
-  expoente cúbico (2,98).
+  Floyd-Warshall exigiram subgrafos. No estudo de escala dos nove algoritmos,
+  Floyd-Warshall, Tarjan, Prim e Kruskal confirmaram a complexidade teórica (inclinação
+  $\approx1$ contra $f(n)$), e o Bellman-Ford ficou bem abaixo do seu pior caso.
 \end{itemize}
 
 %% ===================================================================
