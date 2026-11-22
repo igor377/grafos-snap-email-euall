@@ -18,5 +18,15 @@ PLANEJAMENTO.md
 .DS_Store
 Thumbs.db
 
-# Relatório (LaTeX/Overleaf) – entregue apenas como PDF no Moodle
-relatorio/
+# Relatório: pacote do Overleaf e cópias PNG são derivados (o LaTeX usa os PDFs)
+relatorio/*.zip
+relatorio/figuras/*.png
+# Artefatos de compilação LaTeX
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.synctex.gz
+*.fdb_latexmk
+*.fls

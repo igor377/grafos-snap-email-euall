@@ -1,0 +1,19 @@
+% Gerado por src/report_tables.py a partir de results/tables/ -- não editar
+\begin{table*}[t]
+  \caption{Status de cada medida da Parte I: computada exatamente, aproximada ou não computada.}
+  \label{tab:status}
+\small
+\begin{tabular}{p{4.3cm}p{3.1cm}p{9.2cm}}
+  \toprule
+  Medida & Status & Método / justificativa \\
+  \midrule
+  Vértices, arestas, graus, densidade & Computado (exato) & Contagem na lista de adjacência \\
+  Distribuição de graus & Computado (exato) & Frequência de cada grau (Figura~\ref{fig:graus}) \\
+  Componentes e tamanho de cada uma & Computado (exato) & BFS; tamanhos das 15.836 componentes no repositório \\
+  Diâmetro e raio & Computado (exato) & \emph{BoundingDiameters}~\cite{takes2011}, 4 BFS; infinitos no grafo completo (desconexo) \\
+  Comprimento médio dos caminhos & Aproximado (amostragem) & BFS a partir de 500 fontes; o exato exigiria $\approx1{,}3\times10^{11}$ operações \\
+  Clusterização média e triângulos & Computado (exato) & Algoritmo \emph{forward}~\cite{schank2005} \\
+  Visualização & Computado (amostra) & 300 vértices em torno dos 5 maiores hubs; o grafo inteiro é ilegível \\
+  \bottomrule
+\end{tabular}
+\end{table*}
