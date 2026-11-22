@@ -313,8 +313,10 @@ menor custo prefere cadeias de laços recíprocos: a partir do vértice 0, o end
 $\nVLcc \times \nArcos \approx 1{,}5\times10^{11}$ relaxamentos no pior caso. Ele produziu
 as mesmas distâncias que Dijkstra e parou após apenas \rodadasBf{} das até $V-1=299$ rodadas, graças à
 parada antecipada: como cada rodada percorre todas as arestas em sequência, uma única
-rodada pode propagar distâncias por vários saltos. Para não depender só desse subgrafo,
-ele também foi medido em subgrafos de até 16 mil vértices no estudo de escala, a seguir.
+rodada pode propagar distâncias por vários saltos. O tempo da Tabela~\ref{tab:algoritmos}
+reflete esse subgrafo pequeno. Para não depender só dele, Bellman-Ford também foi medido
+no estudo de escala, a seguir: no maior subgrafo (\vBfEscala{} vértices e \eBfEscala{}
+arestas) levou \tBfEscala~s, convergindo em \rodadasEscala{} rodadas.
 Não havendo pesos negativos, Dijkstra é preferível nesse contexto.
 
 \textbf{Floyd-Warshall.} No subgrafo de 300 vértices, a versão em Python puro levou
@@ -367,7 +369,9 @@ pilha. O que cresce é o custo de cada operação. Atribuímos o desvio a efeito
 do interpretador Python, como a alocação de listas de tamanho $V$, cujo custo relativo
 aumenta quando os dados deixam de caber na cache. O Floyd-Warshall vetorizado mostra que
 esse efeito existe e é mensurável, mas, para os algoritmos lineares, ele continua sendo uma
-hipótese, não algo que tenhamos isolado. Há ainda um limite de precisão: repetindo o
+\emph{hipótese não testada}, não algo que tenhamos isolado. Testá-la exigiria, por exemplo,
+contadores de falhas de cache do processador, ou medir o mesmo algoritmo com os vértices
+renumerados ao acaso (pior localidade de memória) e comparar as inclinações. Há ainda um limite de precisão: repetindo o
 experimento inteiro, os expoentes dos algoritmos lineares variaram cerca de $0{,}15$ entre
 execuções (o Tarjan, por exemplo, oscilou entre aproximadamente 1,0 e 1,1), e a faixa
 testada cobre pouco mais de uma ordem de grandeza. Por isso, interpretamos as inclinações
@@ -462,7 +466,7 @@ hubs), mas uma lei de potência pura não descreve bem toda a distribuição.
 
 \subsubsection{Robustez}
 Seguindo o Apêndice~C, trabalhamos na LCC ($N = \nVLcc$) e removemos
-$r=\lfloor0{,}05N\rfloor=\rRemovidos$ vértices em dois cenários: (a) remoção aleatória,
+$r=\lceil0{,}05N\rceil=\rRemovidos$ vértices em dois cenários: (a) remoção aleatória,
 com $R=30$ repetições; e (b) ataque direcionado pelo \emph{ranking fixo} de uma
 centralidade, calculado uma vez no grafo original, removendo os $r$ primeiros. Usamos as
 três centralidades sugeridas, todas implementadas por nós e validadas contra o NetworkX:
@@ -473,7 +477,8 @@ $O(V\cdot E)\approx7{,}6\times10^{10}$ operações. Por isso usamos o algoritmo 
 com 500 fontes sorteadas e extrapolação por $n/k$, um estimador não enviesado que
 preserva o ranking (verificado nos testes), ao custo de cerca de 5 minutos. As métricas são: A, a fração $S/N$ de
 vértices na maior componente; B, o número de componentes; C, o comprimento médio na
-maior componente (50 fontes); e D, a fração de vértices isolados entre os restantes.
+maior componente, estimado com 50 fontes após a remoção e comparado com o $L$ exato do
+grafo intacto ($\Lexato$); e D, a fração de vértices isolados entre os restantes.
 
 \input{tabelas/tab_robustez}
 
@@ -488,7 +493,10 @@ maior componente (50 fontes); e D, a fração de vértices isolados entre os res
 \textbf{(a) Robusta à remoção aleatória de 5\%? Sim.} A maior componente mantém
 $S_{rand}/S_0 = \Srand$ dos vértices (Tabela~\ref{tab:robustez} e
 Figura~\ref{fig:robustez}): perde pouco mais que os 5\% removidos. O comprimento médio
-quase não muda (\Loriginal{} para \Laleatoria), e só \pctIsolAleat\% dos vértices ficam isolados. O desvio
+praticamente não muda: \Loriginal{} (exato) no grafo intacto contra
+$\Laleatoria \pm \LaleatoriaDesvio$ após a remoção. A diferença está dentro do erro do
+estimador de 50 fontes, que no próprio grafo intacto dá \LoriginalEst. Só
+\pctIsolAleat\% dos vértices ficam isolados. O desvio
 alto de B (cerca de \BdesvioAleat) ocorre porque, quando o sorteio atinge um hub por acaso, suas
 folhas se desprendem.
 
