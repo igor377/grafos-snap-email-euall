@@ -1,8 +1,9 @@
 """Árvore Geradora Mínima: Prim e Kruskal.
 
 Aplicabilidade: com pesos todos iguais (grafo não ponderado) qualquer árvore
-geradora seria mínima. Por isso usamos os pesos sintéticos inteiros em [1, 10]
-(semente fixa). Executado na LCC (conexa), então a árvore tem V − 1 arestas.
+geradora seria mínima. Por isso usamos os pesos da reciprocidade (1 = recíproco,
+2 = mão única): a árvore mínima usa o máximo possível de laços recíprocos. Executado
+na LCC (conexa), então a árvore tem V − 1 arestas.
 
 - Prim: heap binário com "lazy deletion" -> O(E log V).
 - Kruskal: ordenação das arestas O(E log E) = O(E log V) + union-find com

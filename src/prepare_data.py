@@ -6,9 +6,13 @@ Arquivos gerados:
   directed_no_loops.edgelist.gz    grafo dirigido sem auto-loops (G_dir, para o Tarjan)
   subgraph_300.edgelist.gz         subgrafo induzido de 300 vértices obtido por BFS na LCC, `u v w`
 
-Pesos: o grafo é não ponderado. Para os algoritmos ponderados (Dijkstra,
-Bellman-Ford, Floyd-Warshall, Prim, Kruskal) atribuímos pesos inteiros
-uniformes em [1, 10] com semente fixa, garantindo reprodutibilidade.
+Pesos DERIVADOS DOS DADOS: o SNAP não informa quantos e-mails cada par trocou, mas
+informa a direção. Usamos a reciprocidade como intensidade do laço:
+  w = 1  se a comunicação foi nos dois sentidos (u→v e v→u): laço forte;
+  w = 2  se foi de mão única (só u→v ou só v→u): laço fraco.
+Assim, caminhos mínimos (Dijkstra, Bellman-Ford, Floyd-Warshall) preferem cadeias
+de laços recíprocos, e a árvore geradora mínima (Prim, Kruskal) prioriza as
+relações de troca efetiva de mensagens.
 
 Uso:
     python -m src.prepare_data
@@ -29,12 +33,19 @@ from src.treatment import build_adjacency, induced_relabel, treat
 
 SEED = 42
 SUBGRAPH_SIZE = 300
-WEIGHT_MIN, WEIGHT_MAX = 1, 10
+W_RECIPROCAL, W_ONE_WAY = 1, 2
 
 
-def synthetic_weights(m: int, seed: int = SEED) -> list[int]:
-    rng = random.Random(seed)
-    return [rng.randint(WEIGHT_MIN, WEIGHT_MAX) for _ in range(m)]
+def reciprocity_weights(edges, original_ids, directed_edges) -> list[int]:
+    """Peso de cada aresta não dirigida {u, v} (ids da LCC): 1 se houve e-mail nos dois
+    sentidos no grafo dirigido original, 2 se só num sentido."""
+    directed = set(directed_edges)
+    weights = []
+    for u, v in edges:
+        a, b = original_ids[u], original_ids[v]
+        weights.append(W_RECIPROCAL if (a, b) in directed and (b, a) in directed
+                       else W_ONE_WAY)
+    return weights
 
 
 def bfs_sample(adj, size: int, seed: int = SEED) -> list[int]:
@@ -65,14 +76,20 @@ def main() -> None:
     # LCC renumerada + pesos
     n_lcc = len(t["lcc_map"])
     lcc_edges = t["lcc_edges"]
-    lcc_weights = synthetic_weights(len(lcc_edges))
+    lcc_weights = reciprocity_weights(lcc_edges, t["lcc_map"], t["directed_edges"])
+    n_rec = lcc_weights.count(W_RECIPROCAL)
     write_edgelist(
         LCC_FILE, lcc_edges, weights=lcc_weights,
         header=(f"email-EuAll - LCC nao dirigida simples, sem auto-loops\n"
                 f"Vertices: {n_lcc} Arestas: {len(lcc_edges)}\n"
-                f"Pesos sinteticos uniformes em [{WEIGHT_MIN},{WEIGHT_MAX}], seed={SEED}\n"
+                f"Pesos pela reciprocidade: w={W_RECIPROCAL} se houve e-mail nos dois "
+                f"sentidos ({n_rec} arestas), w={W_ONE_WAY} se so num sentido "
+                f"({len(lcc_edges) - n_rec} arestas)\n"
                 f"u\tv\tw"),
     )
+    print(f"Pesos: {n_rec} arestas recíprocas (w={W_RECIPROCAL}, "
+          f"{n_rec / len(lcc_edges):.1%}) e {len(lcc_edges) - n_rec} de mão única "
+          f"(w={W_ONE_WAY})")
     with open_write(LCC_MAP_FILE) as f:
         f.write("novo_id,id_original\n")
         for new, old in enumerate(t["lcc_map"]):

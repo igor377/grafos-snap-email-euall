@@ -96,12 +96,12 @@ SUBGRAPH_FILE = PROCESSED_DIR / "subgraph_300.edgelist.gz"
 
 
 def load_lcc() -> tuple[int, list[tuple[int, int]], list[int]]:
-    """LCC não dirigida (vértices 0..n-1) com pesos sintéticos 1–10."""
+    """LCC não dirigida (vértices 0..n-1) com pesos pela reciprocidade (1 ou 2)."""
     return read_weighted_edgelist(LCC_FILE)
 
 
 def load_subgraph() -> tuple[int, list[tuple[int, int]], list[int]]:
-    """Subgrafo de 300 vértices (BFS na LCC) com pesos sintéticos 1–10."""
+    """Subgrafo de 300 vértices (BFS na LCC) com pesos pela reciprocidade (1 ou 2)."""
     return read_weighted_edgelist(SUBGRAPH_FILE)
 
 

@@ -1,7 +1,7 @@
 """Bellman-Ford.
 
 Aplicabilidade: aceita pesos negativos e detecta ciclos negativos, mas custa
-O(V · E). No email-EuAll (não ponderado, pesos sintéticos positivos) não há
+O(V · E). No email-EuAll (pesos 1/2 pela reciprocidade, todos positivos) não há
 vantagem sobre Dijkstra; ele é executado no subgrafo de 300 vértices, já que na
 LCC seriam até 224.832 × 679.850 ≈ 1,5 × 10^11 relaxamentos.
 

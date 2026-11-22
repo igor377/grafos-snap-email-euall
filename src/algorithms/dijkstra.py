@@ -1,8 +1,9 @@
 """Dijkstra com heap binário (heapq) e "lazy deletion".
 
-Aplicabilidade: exige pesos não negativos. O email-EuAll é não ponderado; com
-peso 1 Dijkstra equivale à BFS. Usamos pesos sintéticos inteiros em [1, 10]
-(semente fixa) para exercitar o algoritmo.
+Aplicabilidade: exige pesos não negativos. O SNAP não informa quantos e-mails cada
+par trocou; com peso 1 Dijkstra equivaleria à BFS. Usamos pesos derivados da
+reciprocidade (1 = laço recíproco, 2 = mão única): o caminho de menor custo prefere
+cadeias de comunicação nos dois sentidos.
 
 Cada aresta pode inserir uma entrada no heap -> O((V + E) log V).
 """
