@@ -31,7 +31,7 @@ python -m venv .venv
 .venv\Scripts\activate              # Linux/macOS: source .venv/bin/activate
 pip install -r requirements.txt
 
-python scripts/run_all.py           # pipeline completo (~40 min)
+python scripts/run_all.py           # pipeline completo (~50 min)
 python -m pytest                    # testes (~10 s)
 jupyter notebook notebooks/analise.ipynb
 ```
@@ -63,10 +63,13 @@ src/
   benchmark.py            Parte II: tempos, IC 95% e experimento de escala
   smallworld.py           Parte III: small-world (gerador Erdős–Rényi próprio)
   powerlaw.py             Parte III: lei de potência
+  centrality.py           centralidades da LCC (grau, PageRank, betweenness amostrada)
   robustness.py           Parte III: robustez a remoção aleatória e direcionada
+  hubs.py                 Parte III: perfil dos 10 maiores hubs
+  models.py               Parte III (extra): modelos ER, BA e WS gerados por código próprio
   report_tables.py        gera as tabelas LaTeX do relatório a partir dos CSVs
   algorithms/             BFS, DFS, Euler, Dijkstra, Bellman-Ford, Floyd-Warshall,
-                          Tarjan, Prim, Kruskal, PageRank
+                          Tarjan, Prim, Kruskal, PageRank, betweenness (Brandes)
 notebooks/analise.ipynb   reúne todas as tabelas e figuras
 tests/                    testes (implementações conferidas com o NetworkX)
 results/tables/           resultados em CSV
@@ -92,8 +95,11 @@ todos eles nesta ordem.
 | 9 | `python -m src.benchmark` | Tempo de todos os algoritmos (30 execuções) e escala dos 9 algoritmos (30 repetições por tamanho, IC 95%) | `parte2_*.csv`, `tempos_algoritmos.*`, `escala_algoritmos.*` | 17 min |
 | 10 | `python -m src.smallworld` | Small-world contra 5 grafos Erdős–Rényi | `parte3_smallworld*.csv` | 10 min |
 | 11 | `python -m src.powerlaw` | Lei de potência | `parte3_powerlaw*.csv`, `lei_de_potencia.png` | 5 s |
-| 12 | `python -m src.robustness` | Robustez: 30 remoções aleatórias + ataques por grau e por PageRank | `parte3_robustez*.csv`, `robustez.*` | 7 min |
-| 13 | `python -m src.report_tables` | Tabelas LaTeX do relatório a partir dos CSVs | `results/latex/tab_*.tex` | 1 s |
+| 12 | `python -m src.centrality` | Grau, PageRank e betweenness (Brandes, 500 fontes) de cada vértice da LCC | `data/processed/centralidades.csv.gz` | 5 min |
+| 13 | `python -m src.robustness` | Robustez: 30 remoções aleatórias + ataques por grau, PageRank e betweenness | `parte3_robustez*.csv`, `robustez.*` | 7 min |
+| 14 | `python -m src.hubs` | Perfil dos 10 maiores hubs | `parte3_hubs*.csv` | 2 s |
+| 15 | `python -m src.models` | Extra: modelos ER, BA e WS contra o grafo real | `parte3_modelos.csv`, `modelos_ccdf.*` | 3 min |
+| 16 | `python -m src.report_tables` | Tabelas LaTeX do relatório a partir dos CSVs | `results/latex/tab_*.tex` | 1 s |
 
 \* Tempos aproximados num notebook comum. `benchmark` e `robustness` aceitam `--quick`
 para uma execução reduzida e `--plots-only` para só redesenhar as figuras a partir dos
@@ -184,9 +190,13 @@ IC 95% por tamanho. O tempo médio é ajustado em log-log contra a função teó
 | Kruskal | E log V | 1,05 (0,998) | 14 mil – 224.832 |
 | Bellman-Ford | V·E | 0,61 (0,979) | 1 mil – 16 mil |
 | Floyd-Warshall | V³ | 1,00 (1,000) | 50 – 300 |
+| Floyd-Warshall (numpy) | V³ | 1,21 (0,995) | 250 – 1.000 |
 
 Como ler:
 - **Floyd-Warshall, Tarjan, Prim e Kruskal** confirmam a complexidade teórica (≈ 1).
+- **Floyd-Warshall vetorizado (1,21)** é um caso controlado do efeito de memória: a matriz
+  de distâncias (8V² bytes) cresce de 0,5 MB a 8 MB e deixa de caber na memória cache, de
+  modo que cada operação fica mais cara, embora o número de operações continue V³.
 - **Bellman-Ford fica bem abaixo de 1** porque o V·E é o pior caso. Com a parada
   antecipada, ele convergiu em só 4 ou 5 rodadas em todos os tamanhos, então o custo real
   foi proporcional a k·E, com k pequeno.
@@ -206,7 +216,9 @@ Como ler:
 | Small-world? | **Sim**: C = 0,079 contra C_rand ≈ 0,000008 (cerca de 10⁴ vezes maior); L = 4,13 contra L_rand ≈ 11,1; σ ≈ 2,7×10⁴ |
 | Lei de potência? | **Aproximadamente**: cauda pesada, com γ ≈ 1,9–2,0 nos ajustes lineares, mas dois regimes (γ ≈ 2,8 na cabeça e γ ≈ 1,7 na cauda, por máxima verossimilhança) e corte acima de k ≈ 1.000 |
 | Robusto à remoção aleatória de 5%? | **Sim**: a maior componente mantém 90,7% ± 1,7% dos vértices |
-| Robusto à remoção dos 5% mais centrais? | **Não**: atacando pelo **grau**, a maior componente cai para 6 vértices (99,7% isolados); pelo **PageRank** (implementação própria), para 3 vértices (99,8% isolados). As duas centralidades escolhem 93% dos mesmos alvos |
+| Robusto à remoção dos 5% mais centrais? | **Não**, por nenhuma das três centralidades (implementações próprias): a maior componente cai para 6 vértices pelo **grau**, 3 pelo **PageRank** e 11 pela **betweenness**, com mais de 99,6% dos restantes isolados. A betweenness escolhe ~30% de alvos diferentes e mesmo assim produz o mesmo colapso |
+| Maiores hubs | Os 10 maiores recebem de milhares de endereços e escrevem para poucos; o maior recebeu de 7.631 e enviou para 5 (99,96% dos vizinhos são folhas). Juntos, sustentam 20% das folhas da LCC |
+| (Extra) Modelo clássico? | **Nenhum**, nos modelos simulados por nós: o **BA** gera hubs e lei de potência (γ = 2,87), mas C é 200 vezes menor e não há folhas; o **WS** gera agrupamento (C = 0,37), mas não hubs (grau máx. 8) e L = 17; o **ER** não gera nenhum dos dois |
 
 ## Relatório
 
@@ -223,7 +235,7 @@ geradas por `python -m src.report_tables` em `results/latex/` (e copiadas para
 - Os `.gz` de `data/processed/` são gravados sem data de criação, então reexecutar não
   altera os arquivos versionados.
 - Cada algoritmo próprio é conferido com o NetworkX em `tests/`
-  (`python -m pytest`, 110 testes).
+  (`python -m pytest`, 117 testes).
 
 ## Referências
 
