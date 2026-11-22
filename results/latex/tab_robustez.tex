@@ -3,14 +3,14 @@
   \caption{Robustez após remover 5\% dos vértices (média $\pm$ desvio em 30 repetições na remoção aleatória; ataques com ranking fixo).}
   \label{tab:robustez}
 \resizebox{\columnwidth}{!}{%
-\begin{tabular}{lrrrr}
+\begin{tabular}{lrrrrr}
   \toprule
-  Métrica & Original & Aleatória & Ataque: Grau & Ataque: PageRank \\
+  Métrica & Original & Aleatória & Ataque: Grau & Ataque: PageRank & Ataque: Betweenness \\
   \midrule
-  A: $S/N$ & 1 & $0{,}907 \pm 0{,}017$ & $2{,}67\times10^{-5}$ & $1{,}33\times10^{-5}$ \\
-  B: componentes & 1 & $9.431 \pm 3.486$ & 213.168 & 213.396 \\
-  C: $L$ (maior comp.) & 4,02 & $4{,}12 \pm 0{,}04$ & 1,93 & 1,33 \\
-  D: isolados & 0,000 & $0{,}044 \pm 0{,}016$ & 0,997 & 0,998 \\
+  A: $S/N$ & 1 & $0{,}907 \pm 0{,}017$ & $2{,}67\times10^{-5}$ & $1{,}33\times10^{-5}$ & $4{,}89\times10^{-5}$ \\
+  B: componentes & 1 & $9.431 \pm 3.486$ & 213.168 & 213.396 & 213.264 \\
+  C: $L$ (maior comp.) & 4,02 & $4{,}12 \pm 0{,}04$ & 1,93 & 1,33 & 2,29 \\
+  D: isolados & 0,000 & $0{,}044 \pm 0{,}016$ & 0,997 & 0,998 & 0,998 \\
   \bottomrule
 \end{tabular}}
 \end{table}

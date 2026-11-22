@@ -61,7 +61,7 @@ def tex_text(s: str) -> str:
     for a, b in (("\\", r"\textbackslash{}"), ("&", r"\&"), ("%", r"\%"), ("_", r"\_"),
                  ("#", r"\#"), ("×", r"$\times$"), ("≠", r"$\neq$"), ("≥", r"$\geq$"),
                  ("≤", r"$\leq$"), ("γ", r"$\gamma$"), ("σ", r"$\sigma$"),
-                 ("=False", ": não"), ("=True", ": sim")):
+                 ("=False", ": não"), ("=True", ": sim"), ("–", "--"), ("ő", r"\H{o}")):
         s = s.replace(a, b)
     return re.sub(r"(?<![\d.,])\d{4,}(?![\d,])", lambda m: inteiro(m.group()), s)
 
@@ -242,7 +242,8 @@ def tab_powerlaw():
 def tab_robustez():
     s = csv("parte3_robustez").set_index("metrica")
     targets = [c for c in s.columns if c.startswith("direcionada_")]
-    tnames = {"direcionada_grau": "Grau", "direcionada_pagerank": "PageRank"}
+    tnames = {"direcionada_grau": "Grau", "direcionada_pagerank": "PageRank",
+              "direcionada_betweenness": "Betweenness"}
     labels = {"A_fracao_maior_componente": "A: $S/N$", "B_num_componentes": "B: componentes",
               "C_caminho_medio": "C: $L$ (maior comp.)", "D_fracao_isolados": "D: isolados"}
     fmt = {"A_fracao_maior_componente": lambda x: num(x, 3),
@@ -263,10 +264,40 @@ def tab_robustez():
           rows, resize=True)
 
 
+def tab_hubs():
+    h = csv("parte3_hubs")
+    rows = [[inteiro(r.posicao_grau), inteiro(r.grau), inteiro(r.remetentes_entrada),
+             inteiro(r.destinatarios_saida), dec(100 * r.frac_vizinhos_folha, 2) + r"\%",
+             inteiro(r.pos_pagerank), inteiro(r.pos_betweenness)]
+            for r in h.itertuples()]
+    table("hubs", "Os 10 maiores hubs da LCC: endereços distintos dos quais recebeu e para os "
+          "quais enviou e-mail, fração de vizinhos que são folhas (grau 1) e posição nos "
+          "rankings de PageRank e betweenness.", "rrrrrrr",
+          ["Pos.", "Grau", "Remetentes", "Destinatários", "Folhas", "PageRank", "Betweenness"],
+          rows, resize=True)
+
+
+def tab_modelos():
+    m = csv("parte3_modelos")
+    names = {"email-EuAll (LCC)": r"\texttt{email-EuAll} (LCC)"}
+    rows = []
+    for r in m.itertuples():
+        gamma = "--" if pd.isna(r.gamma_mle) else (
+            f"{dec(r.gamma_mle, 2)} (KS {dec(r.ks_mle, 3)})")
+        rows.append([names.get(r.modelo, tex_text(r.modelo).replace("p=0.1", "p=0,1")),
+                     inteiro(r.m), inteiro(r.grau_max), dec(100 * r.fracao_grau1, 1) + r"\%",
+                     num(r.C, 4), dec(r.L, 2), gamma])
+    table("modelos", "Grafo real contra modelos clássicos gerados por código próprio com o "
+          "mesmo número de vértices ($L$ estimado por BFS de 100 fontes; $\\gamma$ por "
+          "máxima verossimilhança na cauda, com o KS do ajuste).", "lrrrrrl",
+          ["Grafo", "Arestas", "Grau máx.", "Grau 1", "$C$", "$L$", r"$\gamma$ (KS)"],
+          rows, wide=True, resize=True)
+
+
 def main() -> None:
     LATEX_DIR.mkdir(parents=True, exist_ok=True)
     for fn in (tab_tratamento, tab_parte1, tab_status, tab_algoritmos, tab_escala,
-               tab_smallworld, tab_powerlaw, tab_robustez):
+               tab_smallworld, tab_powerlaw, tab_robustez, tab_hubs, tab_modelos):
         fn()
     files = sorted(LATEX_DIR.glob("tab_*.tex"))
     print("Tabelas geradas:", ", ".join(f.name for f in files))

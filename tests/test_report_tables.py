@@ -15,3 +15,4 @@ def test_tex_text_escapes_and_formats_integers():
     s = tex_text("matriz 300×300; 224832 vértices; 5% & a_b; entrada≠saída")
     assert r"$\times$" in s and r"\%" in s and r"\&" in s and r"\_" in s and r"$\neq$" in s
     assert "224.832" in s and "300" in s
+    assert tex_text("Erdős–Rényi") == r"Erd\H{o}s--Rényi"

@@ -28,7 +28,10 @@ STEPS = [
     ["-m", "src.benchmark"],
     ["-m", "src.smallworld"],
     ["-m", "src.powerlaw"],
+    ["-m", "src.centrality"],
     ["-m", "src.robustness"],
+    ["-m", "src.hubs"],
+    ["-m", "src.models"],
     ["-m", "src.report_tables"],
 ]
 QUICK_CAPABLE = {"src.benchmark", "src.robustness"}
